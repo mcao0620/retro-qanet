@@ -220,3 +220,70 @@ class BiDAFOutput(nn.Module):
         log_p2 = masked_softmax(logits_2.squeeze(), mask, log_softmax=True)
 
         return log_p1, log_p2
+
+class FV(nn.Module):
+    """Front Verification layer utilized as part of Retrospective reader
+    to augment our QANet by addressing the question of answerability
+    Args:
+        hidden_size (int): Hidden size used in the BiDAF model.
+    """
+    def __init__(self, hidden_size):
+        super(FV, self).__init__()
+        self.relu = nn.ReLU()
+
+        self.maxpool = nn.MaxPool1d(3)
+
+        self.verify_linear = nn.Linear(2 * hidden_size, hidden_size)
+
+        self.softmax = nn.Softmax(0)
+
+
+    def forward(self, M_0, M_1, M_2):
+        #relu each M_i
+        m_0 = self.relu(M_0)
+        m_1 = self.relu(M_1)
+        m_2 = self.relu(M_2)
+        #concatinate the results
+        z = torch.cat(m_0, m_1, m_2)
+        #run 1d max pool to get M_x
+        M_x = self.maxpool(z)
+        #y_i = SOFTMAX(LINEAR(M_x)) to produce logits
+        y_i = self.softmax(self.verify_linear(M_x))
+
+        return y_i
+
+
+class IntensiveOutput(nn.Module):
+        """Outputs the results of running the sample through the intensive module, implementing internal front verification and a span predicition
+    Args:
+        hidden_size (int): Hidden size used in the BiDAF model.
+    """
+    def __init__(self, hidden_size):
+        super(IntensiveOutput, self).__init__()
+        self.ifv = FV(hidden_size)
+        #need to make these the size of M_i
+        self.Ws = torch.tensor(torch.random(1,2 * hidden_size), requires_grad=True)
+        self.We = torch.tensor(torch.random(1,2 * hidden_size), requires_grad=True)
+
+        self.softmax = nn.Softmax(0)
+
+    def forward(self, M_0, M_1, M_2):
+        y_i = self.ifv(M_0, M_1, M_2)
+        s = self.softmax(Ws @ torch.cat(M_0, M_1))
+        e = self.softmax(We @ torch.cat(M_0, M_2)) 
+
+        return y_i, (s, e)
+    
+class SketchyOutput(nn.Module):
+        """Outputs the results of running the sample throuhg the sketchy reading module, implements external front verification
+    Args:
+        hidden_size (int): Hidden size used in the BiDAF model.
+    """
+    def __init__(self, hidden_size):
+        super(SketchyOutput, self).__init__()
+        self.efv = FV(hidden_size)
+
+    def forward(self, M_0, M_1, M_2):
+        y_i = self.efv(M_0, M_1, M_2)       
+
+        return y_i
