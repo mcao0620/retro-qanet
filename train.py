@@ -44,20 +44,34 @@ def main(args):
     log.info('Loading embeddings...')
     word_vectors = util.torch_from_json(args.word_emb_file)
 
-    # Get model
-    log.info('Building model...')
-    model = BiDAF(word_vectors=word_vectors,
-                  hidden_size=args.hidden_size,
-                  drop_prob=args.drop_prob)
-    model = nn.DataParallel(model, args.gpu_ids)
-    if args.load_path:
-        log.info(f'Loading checkpoint from {args.load_path}...')
-        model, step = util.load_model(model, args.load_path, args.gpu_ids)
+    # Get Sketchy Model
+    log.info('Building sketchy model...')
+    sketchy_model = #QANET WITH SKETCHY MODULE PARAMS
+    sketchy_model = nn.DataParallel(sketchy_model, args.gpu_ids)
+    if args.load_path_s:
+        log.info(f'Loading checkpoint from {args.load_path_s}...')
+        sketchy_model, sketchy_step = util.load_model(sketchy_model, args.load_path_s, args.gpu_ids) #check this for how to augment training
+    else:
+        sketchy_step = 0
+    sketchy_model = sketchy_model.to(device)
+    sketchy_model.train()
+    sketchy_ema = util.EMA(sketchy_model, args.ema_decay_s)
+
+    #Recheck which devices are available
+    device, args.gpu_ids = util.get_available_devices()
+
+    # Get Intensive Model
+    log.info('Building intensive model...')
+    intensive_model = #QANET WITH SKETCHY MODULE PARAMS 
+    intensive_model = nn.DataParallel(intensive_model, args.gpu_ids)
+    if args.load_path_i:
+        log.info(f'Loading checkpoint from {args.load_path_i}...')
+        intense_model, intense_step = util.load_model(intense_model, args.load_path_i, args.gpu_ids)
     else:
         step = 0
-    model = model.to(device)
-    model.train()
-    ema = util.EMA(model, args.ema_decay)
+    intense_model = intense_model.to(device)
+    intense_model.train()
+    intense_ema = util.EMA(intense_model, args.ema_decay_i)
 
     # Get saver
     saver = util.CheckpointSaver(args.save_dir,
@@ -67,9 +81,14 @@ def main(args):
                                  log=log)
 
     # Get optimizer and scheduler
-    optimizer = optim.Adadelta(model.parameters(), args.lr,
-                               weight_decay=args.l2_wd)
-    scheduler = sched.LambdaLR(optimizer, lambda s: 1.)  # Constant LR
+    # We could use different optimizers for the sketchy and intensive
+    sketchy_optim = optim.Adadelta(sketchy_model.parameters(), args.lr_s,
+                               weight_decay=args.l2_wd_s)
+    intense_optim = optim.Adadelta(intense_model.parameters(), args.lr_i,
+                               weight_decay=args.l2_wd_i)
+
+    sketchy_sched = sched.LambdaLR(sketchy_optim, lambda s: 1.)  # Constant LR
+    intense_sched = sched.LambdaLR(intense_optim, lambda s: 1.)  # Constant LR
 
     # Get data loader
     log.info('Building dataset...')
@@ -88,6 +107,7 @@ def main(args):
 
     # Train
     log.info('Training...')
+    #Some args for training will be identicle from here on out is that ok?
     steps_till_eval = args.eval_steps
     epoch = step // len(train_dataset)
     while epoch != args.num_epochs:
