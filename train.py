@@ -29,9 +29,12 @@ def main(args):
     args.save_dir = util.get_save_dir(args.save_dir, args.name, training=True)
     log = util.get_logger(args.save_dir, args.name)
     tbx = SummaryWriter(args.save_dir)
-    device, args.gpu_ids = util.get_available_devices()
+    sketchy_device, args.sketchy_gpu_ids = util.get_available_devices()
     log.info(f'Args: {dumps(vars(args), indent=4, sort_keys=True)}')
-    args.batch_size *= max(1, len(args.gpu_ids))
+    args.batch_size *= max(1, len(args.gpu_ids_sketchy)) #What issues may this cause (Alll GPU's dedicated to skethcy?), batch size only works for sketchy and not for 
+
+    #maybe we make batchsize equal to hald of this
+    #Take half of available devices?
 
     # Set random seed
     log.info(f'Using random seed {args.seed}...')
@@ -44,34 +47,34 @@ def main(args):
     log.info('Loading embeddings...')
     word_vectors = util.torch_from_json(args.word_emb_file)
 
-    # Get Sketchy Model
-    log.info('Building sketchy model...')
-    sketchy_model = #QANET WITH SKETCHY MODULE PARAMS
-    sketchy_model = nn.DataParallel(sketchy_model, args.gpu_ids)
+    # Get Sketchy model
+    log.info('Building model...')
+    sketchy_model = #QANET SKETCHY MODEL INTITIATION
+    model = nn.DataParallel(sketchy_model, args.sketchy_gpu_ids)
     if args.load_path_s:
         log.info(f'Loading checkpoint from {args.load_path_s}...')
-        sketchy_model, sketchy_step = util.load_model(sketchy_model, args.load_path_s, args.gpu_ids) #check this for how to augment training
+        sketchy_model, sketchy_step = util.load_model(sketchy_model, args.load_path_s, args.sketchy_gpu_ids)
     else:
         sketchy_step = 0
-    sketchy_model = sketchy_model.to(device)
+    sketchy_model = sketchy_model.to(sketchy_device)
     sketchy_model.train()
-    sketchy_ema = util.EMA(sketchy_model, args.ema_decay_s)
+    skettchy_ema = util.EMA(sketchy_model, args.ema_decay_s)
+     
+    #check again for valid devices
+    intensive_device, args.intensive_gpu_ids = util.get_available_devices()
 
-    #Recheck which devices are available
-    device, args.gpu_ids = util.get_available_devices()
-
-    # Get Intensive Model
-    log.info('Building intensive model...')
-    intensive_model = #QANET WITH SKETCHY MODULE PARAMS 
-    intensive_model = nn.DataParallel(intensive_model, args.gpu_ids)
+    # Get Intensive model
+    log.info('Building model...')
+    intensive_model = #QANET INTENSIVE MODEL INTITIATION
+    model = nn.DataParallel(intensive_model, args.intensive_gpu_ids)
     if args.load_path_i:
         log.info(f'Loading checkpoint from {args.load_path_i}...')
-        intense_model, intense_step = util.load_model(intense_model, args.load_path_i, args.gpu_ids)
+        intensive_model, intensive_step = util.load_model(intensive_model, args.load_path_i, args.intensive_gpu_ids)
     else:
-        step = 0
-    intense_model = intense_model.to(device)
-    intense_model.train()
-    intense_ema = util.EMA(intense_model, args.ema_decay_i)
+        intensive_step = 0
+    intensive_model = intensive_model.to(intensive_device)
+    intensive_model.train()
+    intensive_ema = util.EMA(intensive_model, args.ema_decay_i)
 
     # Get saver
     saver = util.CheckpointSaver(args.save_dir,
@@ -81,14 +84,13 @@ def main(args):
                                  log=log)
 
     # Get optimizer and scheduler
-    # We could use different optimizers for the sketchy and intensive
-    sketchy_optim = optim.Adadelta(sketchy_model.parameters(), args.lr_s,
+    sketchy_optimizer = optim.Adadelta(sketchy_model.parameters(), args.lr_s,
                                weight_decay=args.l2_wd_s)
-    intense_optim = optim.Adadelta(intense_model.parameters(), args.lr_i,
+    intensive_optimizer = optim.Adadelta(intensive_model.parameters(), args.lr_i,
                                weight_decay=args.l2_wd_i)
-
-    sketchy_sched = sched.LambdaLR(sketchy_optim, lambda s: 1.)  # Constant LR
-    intense_sched = sched.LambdaLR(intense_optim, lambda s: 1.)  # Constant LR
+                               
+    sketchy_scheduler = sched.LambdaLR(sketchy_optimizer, lambda s: 1.)  # Constant LR
+    intensive_scheduler = sched.LambdaLR(intensive_optimizer, lambda s: 1.)  # Constant LR
 
     # Get data loader
     log.info('Building dataset...')
@@ -107,9 +109,8 @@ def main(args):
 
     # Train
     log.info('Training...')
-    #Some args for training will be identicle from here on out is that ok?
     steps_till_eval = args.eval_steps
-    epoch = step // len(train_dataset)
+    epoch = intensive_step // len(train_dataset) #WHAT SHOULD WE DO ABOUT STEP HERE? SEPERATE?
     while epoch != args.num_epochs:
         epoch += 1
         log.info(f'Starting epoch {epoch}...')
@@ -117,47 +118,72 @@ def main(args):
                 tqdm(total=len(train_loader.dataset)) as progress_bar:
             for cw_idxs, cc_idxs, qw_idxs, qc_idxs, y1, y2, ids in train_loader:
                 # Setup for forward
-                cw_idxs = cw_idxs.to(device)
-                qw_idxs = qw_idxs.to(device)
+                sketchy_cw_idxs = cw_idxs.to(sketchy_device)
+                sketchy_qw_idxs = qw_idxs.to(sketchy_device)
+                intensive_cw_idxs = cw_idxs.to(intensive_device)    #Sending signals sto the seperate devices
+                intensive_qw_idxs = qw_idxs.to(intensive_device)
                 batch_size = cw_idxs.size(0)
                 optimizer.zero_grad()
 
                 # Forward
-                log_p1, log_p2 = model(cw_idxs, qw_idxs)
-                y1, y2 = y1.to(device), y2.to(device)
-                loss = F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2)
-                loss_val = loss.item()
+                yi_s = sketchy_model(sketchy_cw_idxs, sketchy_qw_idxs)
+                yi_i, log_p1, log_p2 = intensive_model(intensive_cs_idxs, intensive_qw_idxs)
+                sketchy_y1, sketchy_y2 = y1.to(sketchy_device), y2.to(sketchy_device)
+                intensive_y1, intensive_y2 = y1.to(intensive_device), y2.to(intensive_device)
+                bceLoss = nn.BCEWithLogitsLoss()
+                ceLoss = nn.CrossEntropyLoss()
+                sketchy_loss = bceLoss(yi_s, ???) #How do we represnet unanswerable questions? <<<<<<<<<<<<<<<<<<<
+                intensive_loss = args.alpha_1 * bceLoss(yi_i, ???) + args.alpha_2 * (ceLoss(log_p1, intensive_y1) + ceLoss(log_p2, intensive_y2))
+                #loss = F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2)
+                sketchy_loss_val = sketchy_loss.item()
+                intensive_loss_val = intensive_loss.item()
 
                 # Backward
-                loss.backward()
-                nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
-                optimizer.step()
-                scheduler.step(step // batch_size)
-                ema(model, step // batch_size)
+                sketchy_loss.backward()
+                intensive_loss.backward()
+                nn.utils.clip_grad_norm_(sketchy_model.parameters(), args.max_grad_norm) #requires us to have the same grad norm
+                nn.utils.clip_grad_norm_(intensive_model.parameters(), args.max_grad_norm)
+                sketchy_optimizer.step()
+                intensive_optimizer.step()
+                sketchy_scheduler.step(sketchy_step // batch_size)
+                intensive_scheduler.step(intesnive_step // batch_size)  #Requires us to have the same batch size
+                sketchy_ema(sketchy_model, sketchy_step // batch_size)
+                intense_ema(intensive_model, intensive_ step // batch_size)
 
                 # Log info
-                step += batch_size
+                intensice_step += batch_size #IS STEP USED RIGHT?
                 progress_bar.update(batch_size)
                 progress_bar.set_postfix(epoch=epoch,
-                                         NLL=loss_val)
-                tbx.add_scalar('train/NLL', loss_val, step)
-                tbx.add_scalar('train/LR',
-                               optimizer.param_groups[0]['lr'],
-                               step)
+                                         BCE=sketchy_loss_val, ???) #How can we change this to handle the intensive loss
+                tbx.add_scalar('train/Sketchy', skeychy_loss_val, sketchy_step)
+                tbx.add_scalar('train/Intensive', intensive_loss_val, intensive_step)
+                tbx.add_scalar('train/LR_Intensive',
+                               intensive_optimizer.param_groups[0]['lr'],
+                               intensive_step)
+                tbx.add_scalar('train/LR_Sketchy',
+                               sketchy_optimizer.param_groups[0]['lr'],
+                               sketchy_step)
 
                 steps_till_eval -= batch_size
                 if steps_till_eval <= 0:
                     steps_till_eval = args.eval_steps
 
                     # Evaluate and save checkpoint
-                    log.info(f'Evaluating at step {step}...')
-                    ema.assign(model)
-                    results, pred_dict = evaluate(model, dev_loader, device,
+                    log.info(f'Evaluating at step {intensive_step}...') #This would indicate that the steps for each need to be equal, Look into this
+                    ema_sketchy.assign(sketchy_model)
+                    ema_intensive.assign(intensive_model)
+                    sketchy_results, sketchy_pred_dict = evaluate(sketchy_model, dev_loader, device,
                                                   args.dev_eval_file,
                                                   args.max_ans_len,
                                                   args.use_squad_v2)
-                    saver.save(step, model, results[args.metric_name], device)
-                    ema.resume(model)
+                    intensive_results, intensive_pred_dict = evaluate(intensive_model, dev_loader, device,
+                                                  args.dev_eval_file,
+                                                  args.max_ans_len,
+                                                  args.use_squad_v2)
+                    saver.save(sketchy_step, sketchy_model, results[args.metric_name], sketchy_device)
+                    saver.save(intensive_step, intensive_model, results[args.metric_name], intensive_device)
+                    sketchy_ema.resume(sketchy_model)
+                    intensive_ema.resume(intensive_model)
 
                     # Log to console
                     results_str = ', '.join(f'{k}: {v:05.2f}' for k, v in results.items())
@@ -166,17 +192,17 @@ def main(args):
                     # Log to TensorBoard
                     log.info('Visualizing in TensorBoard...')
                     for k, v in results.items():
-                        tbx.add_scalar(f'dev/{k}', v, step)
+                        tbx.add_scalar(f'dev/{k}', v, step) #Also implies a signular step here... what is the dependency of step - Is training with the same step problematic
                     util.visualize(tbx,
                                    pred_dict=pred_dict,
                                    eval_path=args.dev_eval_file,
-                                   step=step,
+                                   step=step,  #Same issue with step here
                                    split='dev',
                                    num_visuals=args.num_visuals)
 
 
 def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2):
-    nll_meter = util.AverageMeter()
+    nll_meter = util.AverageMeter() 
 
     model.eval()
     pred_dict = {}
