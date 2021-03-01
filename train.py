@@ -31,9 +31,8 @@ def main(args):
     tbx = SummaryWriter(args.save_dir)
     sketchy_device, args.sketchy_gpu_ids = util.get_available_devices()
     log.info(f'Args: {dumps(vars(args), indent=4, sort_keys=True)}')
-    args.batch_size *= max(1, len(args.gpu_ids_sketchy)) #What issues may this cause (Alll GPU's dedicated to skethcy?), batch size only works for sketchy and not for 
-
-    #maybe we make batchsize equal to hald of this
+    args.batch_size *= max(1, len(args.gpu_ids_sketchy)) 
+    #What issues may this cause (Alll GPU's dedicated to skethcy?), batch size only works for sketchy and not for Intensive
     #Take half of available devices?
 
     # Set random seed
@@ -107,83 +106,66 @@ def main(args):
                                  num_workers=args.num_workers,
                                  collate_fn=collate_fn)
 
-    # Train
-    log.info('Training...')
-    steps_till_eval = args.eval_steps
-    epoch = intensive_step // len(train_dataset) #WHAT SHOULD WE DO ABOUT STEP HERE? SEPERATE?
-    while epoch != args.num_epochs:
-        epoch += 1
-        log.info(f'Starting epoch {epoch}...')
-        with torch.enable_grad(), \
-                tqdm(total=len(train_loader.dataset)) as progress_bar:
-            for cw_idxs, cc_idxs, qw_idxs, qc_idxs, y1, y2, ids in train_loader:
+    def train_model(model_name ,model, optimizer, scheduler, tbx, progress_bar, steps_till_eval, 
+                    log, ema, step, others):
+
+                others = cw_idxs, cc_idxs, qw_idxs, qc_idxs, y1, y2, ids
+
                 # Setup for forward
-                sketchy_cw_idxs = cw_idxs.to(sketchy_device)
-                sketchy_qw_idxs = qw_idxs.to(sketchy_device)
-                intensive_cw_idxs = cw_idxs.to(intensive_device)    #Sending signals sto the seperate devices
-                intensive_qw_idxs = qw_idxs.to(intensive_device)
+                cw_idxs = cw_idxs.to(device)
+                qw_idxs = qw_idxs.to(device)
+                cc_idxs = cc.idxs.to(device)
+                qc_idxs = qc.idxs.tto(device)
                 batch_size = cw_idxs.size(0)
                 optimizer.zero_grad()
 
                 # Forward
-                yi_s = sketchy_model(sketchy_cw_idxs, sketchy_qw_idxs)
-                yi_i, log_p1, log_p2 = intensive_model(intensive_cs_idxs, intensive_qw_idxs)
-                sketchy_y1, sketchy_y2 = y1.to(sketchy_device), y2.to(sketchy_device)
-                intensive_y1, intensive_y2 = y1.to(intensive_device), y2.to(intensive_device)
+                y1, y2 = y1.to(device), y2.to(device)
                 bceLoss = nn.BCEWithLogitsLoss()
                 ceLoss = nn.CrossEntropyLoss()
-                sketchy_loss = bceLoss(yi_s, ???) #How do we represnet unanswerable questions? <<<<<<<<<<<<<<<<<<<
-                intensive_loss = args.alpha_1 * bceLoss(yi_i, ???) + args.alpha_2 * (ceLoss(log_p1, intensive_y1) + ceLoss(log_p2, intensive_y2))
-                #loss = F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2)
-                sketchy_loss_val = sketchy_loss.item()
-                intensive_loss_val = intensive_loss.item()
+
+                if model_name == 'sketchy':
+                    yi = model(sketchy_cw_idxs, sketchy_qw_idxs)
+                    log_p1 = None
+                    log_p2 = None
+                    loss = bceLoss(yi_s, ???) #How do we represnet unanswerable questions? <<<<<<<<<<<<<<<<<<<
+                else:                 
+                    yi, log_p1, log_p2 = intensive_model(intensive_cs_idxs, intensive_qw_idxs)
+                    loss = args.alpha_1 * bceLoss(yi, ???) + args.alpha_2 * (ceLoss(log_p1, y1) + ceLoss(log_p2, y2))
+
+                loss_val = loss.item()
 
                 # Backward
-                sketchy_loss.backward()
-                intensive_loss.backward()
-                nn.utils.clip_grad_norm_(sketchy_model.parameters(), args.max_grad_norm) #requires us to have the same grad norm
-                nn.utils.clip_grad_norm_(intensive_model.parameters(), args.max_grad_norm)
-                sketchy_optimizer.step()
-                intensive_optimizer.step()
-                sketchy_scheduler.step(sketchy_step // batch_size)
-                intensive_scheduler.step(intesnive_step // batch_size)  #Requires us to have the same batch size
+                loss.backward()
+                nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm) 
+                optimizer.step()
+                scheduler.step(sketchy_step // batch_size)
                 sketchy_ema(sketchy_model, sketchy_step // batch_size)
                 intense_ema(intensive_model, intensive_ step // batch_size)
 
                 # Log info
-                intensice_step += batch_size #IS STEP USED RIGHT?
+                step += batch_size
                 progress_bar.update(batch_size)
                 progress_bar.set_postfix(epoch=epoch,
                                          BCE=sketchy_loss_val, ???) #How can we change this to handle the intensive loss
-                tbx.add_scalar('train/Sketchy', skeychy_loss_val, sketchy_step)
-                tbx.add_scalar('train/Intensive', intensive_loss_val, intensive_step)
-                tbx.add_scalar('train/LR_Intensive',
-                               intensive_optimizer.param_groups[0]['lr'],
-                               intensive_step)
-                tbx.add_scalar('train/LR_Sketchy',
-                               sketchy_optimizer.param_groups[0]['lr'],
-                               sketchy_step)
+                tbx.add_scalar('train/' + model_name, loss_val, step)
+                tbx.add_scalar('train/LR-' + model_name,
+                               optimizer.param_groups[0]['lr'],
+                               step)
 
                 steps_till_eval -= batch_size
                 if steps_till_eval <= 0:
                     steps_till_eval = args.eval_steps
 
                     # Evaluate and save checkpoint
-                    log.info(f'Evaluating at step {intensive_step}...') #This would indicate that the steps for each need to be equal, Look into this
-                    ema_sketchy.assign(sketchy_model)
-                    ema_intensive.assign(intensive_model)
-                    sketchy_results, sketchy_pred_dict = evaluate(sketchy_model, dev_loader, device,
+                    log.info(f'Evaluating at step {intensive_step}...')
+                    ema.assign(model)
+                    results, pred_dict = evaluate(model, dev_loader, device,
                                                   args.dev_eval_file,
                                                   args.max_ans_len,
                                                   args.use_squad_v2)
-                    intensive_results, intensive_pred_dict = evaluate(intensive_model, dev_loader, device,
-                                                  args.dev_eval_file,
-                                                  args.max_ans_len,
-                                                  args.use_squad_v2)
-                    saver.save(sketchy_step, sketchy_model, results[args.metric_name], sketchy_device)
-                    saver.save(intensive_step, intensive_model, results[args.metric_name], intensive_device)
-                    sketchy_ema.resume(sketchy_model)
-                    intensive_ema.resume(intensive_model)
+                    saver.save(step, model, results[args.metric_name], device)
+                    ema.resume(model)
 
                     # Log to console
                     results_str = ', '.join(f'{k}: {v:05.2f}' for k, v in results.items())
@@ -192,21 +174,42 @@ def main(args):
                     # Log to TensorBoard
                     log.info('Visualizing in TensorBoard...')
                     for k, v in results.items():
-                        tbx.add_scalar(f'dev/{k}', v, step) #Also implies a signular step here... what is the dependency of step - Is training with the same step problematic
+                        tbx.add_scalar(f'dev/{k}', v, step) 
                     util.visualize(tbx,
                                    pred_dict=pred_dict,
                                    eval_path=args.dev_eval_file,
-                                   step=step,  #Same issue with step here
+                                   step=step,  
                                    split='dev',
                                    num_visuals=args.num_visuals)
 
+
+    # Train
+    log.info('Training...')
+    steps_till_eval = args.eval_steps
+    intensive_epoch = intensive_step // len(train_dataset) #WHAT SHOULD WE DO ABOUT STEP HERE? SEPERATE?
+    sketchy_epoch = skethy_step // len(train_dataset)
+    while intensive_epoch != args.intensive_num_epochs and sketchy_epoch != args.sketchy_num_epochs
+        intensive_epoch += 1
+        sketchy_epoch += 1
+        log.info(f'Starting intensive epoch {intensive_epoch} and sketchy epoch{sketchy_epoch}...')
+        with torch.enable_grad(), \
+                tqdm(total=len(train_loader.dataset)) as progress_bar:
+            for cw_idxs, cc_idxs, qw_idxs, qc_idxs, y1, y2, ids in train_loader:
+                others = (cw_idxs, cc_idxs, qw_idxs, qc_idxs, y1, y2, ids)
+                if intensive_epoch != args.intensive_num_epochs:
+                    train_model('intensive' , intensive_model, intensive_optimizer, intensive_scheduler, 
+                                tbx, progress_bar, steps_till_eval, log, intensive_ema, intensive_step, others)
+                if sketchy_epoch != args.sketchy_num_epochs:
+                    train_model('sketchy' ,s ketchy_model, sketchy_optimizer, sketchy_scheduler, 
+                                tbx, progress_bar, steps_till_eval, log, sketchy_ema, sketchy_step, others)
+                
+                
+
 #Evaluate Needs to be set to have a proper inference otherwise mostly complete
 def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2):
-    sketchy_meter = util.AverageMeter() 
-    intensive_meter = util.AverageMeter()
+    meter = util.AverageMeter() 
 
-    sketchy_model.eval()
-    intensive_model.eval()
+    model.eval()
     pred_dict = {}
     with open(eval_file, 'r') as fh:
         gold_dict = json_load(fh)
@@ -214,33 +217,34 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2):
             tqdm(total=len(data_loader.dataset)) as progress_bar:
         for cw_idxs, cc_idxs, qw_idxs, qc_idxs, y1, y2, ids in data_loader:
             # Setup for forward
-            sketchy_cw_idxs = cw_idxs.to(sketchy_device)
-            sketchy_qw_idxs = qw_idxs.to(sketchy_device)
-            intensive_cw_idxs = cw_idxs.to(intensive_device)    #Sending signals sto the seperate devices
-            intensive_qw_idxs = qw_idxs.to(intensive_device)
+            cw_idxs = cw_idxs.to(device)
+            qw_idxs = qw_idxs.to(device)
             batch_size = cw_idxs.size(0)
 
             # Forward
-            yi_s = sketchy_model(sketchy_cw_idxs, sketchy_qw_idxs)
-            yi_i, log_p1, log_p2 = intensive_model(intensive_cs_idxs, intensive_qw_idxs)
-            sketchy_y1, sketchy_y2 = y1.to(sketchy_device), y2.to(sketchy_device)
-            intensive_y1, intensive_y2 = y1.to(intensive_device), y2.to(intensive_device)
+            y1, y2 = y1.to(device), y2.to(device)
             bceLoss = nn.BCEWithLogitsLoss()
             ceLoss = nn.CrossEntropyLoss()
-            sketchy_loss = bceLoss(yi_s, ???) #How do we represnet unanswerable questions? <<<<<<<<<<<<<<<<<<<
-            intensive_loss = args.alpha_1 * bceLoss(yi_i, ???) + args.alpha_2 * (ceLoss(log_p1, intensive_y1) + ceLoss(log_p2, intensive_y2))
-            #loss = F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2)
-            sketchy_meter.update(sketchy_loss.item(), batch_size)
-            intensive_meter.update(intensive_loss.item(), batch_size)
 
-            # Get F1 and EM scores
-            p1, p2 = log_p1.exp(), log_p2.exp()
-            starts, ends = util.discretize(p1, p2, max_len, use_squad_v2)
+            if model_name == 'sketchy':
+                yi = model(sketchy_cw_idxs, sketchy_qw_idxs)
+                log_p1 = None
+                log_p2 = None
+                loss = bceLoss(yi_s, ???) #How do we represnet unanswerable questions? <<<<<<<<<<<<<<<<<<<
+                meter.update(loss.item(), batch_size)
+            else:                 
+                yi, log_p1, log_p2 = intensive_model(intensive_cs_idxs, intensive_qw_idxs)
+                loss = args.alpha_1 * bceLoss(yi, ???) + args.alpha_2 * (ceLoss(log_p1, y1) + ceLoss(log_p2, y2))
+                meter.update(loss.item(), batch_size)
+                # Get F1 and EM scores
+                p1, p2 = log_p1.exp(), log_p2.exp()
+                starts, ends = util.discretize(p1, p2, max_len, use_squad_v2)
 
             # Log info
             progress_bar.update(batch_size)
-            progress_bar.set_postfix(Sketchy=sketchy_meter.avg, Intensive=intensive_meter.avg)
+            progress_bar.set_postfix(loss_calc=meter.avg)
 
+            # NEED to change this to evaluate answerability prediction <<<<<<<<<<<<<<<<<<
             preds, _ = util.convert_tokens(gold_dict,
                                            ids.tolist(),
                                            starts.tolist(),
@@ -248,12 +252,10 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2):
                                            use_squad_v2)
             pred_dict.update(preds)
 
-    sketchy_model.train()
-    intensive_model.train()
+    model.train()
 
     results = util.eval_dicts(gold_dict, pred_dict, use_squad_v2)
-    results_list = [('Sketchy', sketchy_meter.avg),
-                    ('Intensive', intensive_meter.avg),
+    results_list = [(model_name + 'model', sketchy_meter.avg),
                     ('F1', results['F1']),
                     ('EM', results['EM'])]
     if use_squad_v2:
