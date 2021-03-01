@@ -200,11 +200,13 @@ def main(args):
                                    split='dev',
                                    num_visuals=args.num_visuals)
 
-
+#Evaluate Needs to be set to have a proper inference otherwise mostly complete
 def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2):
-    nll_meter = util.AverageMeter() 
+    sketchy_meter = util.AverageMeter() 
+    intensive_meter = util.AverageMeter()
 
-    model.eval()
+    sketchy_model.eval()
+    intensive_model.eval()
     pred_dict = {}
     with open(eval_file, 'r') as fh:
         gold_dict = json_load(fh)
@@ -212,15 +214,24 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2):
             tqdm(total=len(data_loader.dataset)) as progress_bar:
         for cw_idxs, cc_idxs, qw_idxs, qc_idxs, y1, y2, ids in data_loader:
             # Setup for forward
-            cw_idxs = cw_idxs.to(device)
-            qw_idxs = qw_idxs.to(device)
+            sketchy_cw_idxs = cw_idxs.to(sketchy_device)
+            sketchy_qw_idxs = qw_idxs.to(sketchy_device)
+            intensive_cw_idxs = cw_idxs.to(intensive_device)    #Sending signals sto the seperate devices
+            intensive_qw_idxs = qw_idxs.to(intensive_device)
             batch_size = cw_idxs.size(0)
 
             # Forward
-            log_p1, log_p2 = model(cw_idxs, qw_idxs)
-            y1, y2 = y1.to(device), y2.to(device)
-            loss = F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2)
-            nll_meter.update(loss.item(), batch_size)
+            yi_s = sketchy_model(sketchy_cw_idxs, sketchy_qw_idxs)
+            yi_i, log_p1, log_p2 = intensive_model(intensive_cs_idxs, intensive_qw_idxs)
+            sketchy_y1, sketchy_y2 = y1.to(sketchy_device), y2.to(sketchy_device)
+            intensive_y1, intensive_y2 = y1.to(intensive_device), y2.to(intensive_device)
+            bceLoss = nn.BCEWithLogitsLoss()
+            ceLoss = nn.CrossEntropyLoss()
+            sketchy_loss = bceLoss(yi_s, ???) #How do we represnet unanswerable questions? <<<<<<<<<<<<<<<<<<<
+            intensive_loss = args.alpha_1 * bceLoss(yi_i, ???) + args.alpha_2 * (ceLoss(log_p1, intensive_y1) + ceLoss(log_p2, intensive_y2))
+            #loss = F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2)
+            sketchy_meter.update(sketchy_loss.item(), batch_size)
+            intensive_meter.update(intensive_loss.item(), batch_size)
 
             # Get F1 and EM scores
             p1, p2 = log_p1.exp(), log_p2.exp()
@@ -228,7 +239,7 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2):
 
             # Log info
             progress_bar.update(batch_size)
-            progress_bar.set_postfix(NLL=nll_meter.avg)
+            progress_bar.set_postfix(Sketchy=sketchy_meter.avg, Intensive=intensive_meter.avg)
 
             preds, _ = util.convert_tokens(gold_dict,
                                            ids.tolist(),
@@ -237,10 +248,12 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2):
                                            use_squad_v2)
             pred_dict.update(preds)
 
-    model.train()
+    sketchy_model.train()
+    intensive_model.train()
 
     results = util.eval_dicts(gold_dict, pred_dict, use_squad_v2)
-    results_list = [('NLL', nll_meter.avg),
+    results_list = [('Sketchy', sketchy_meter.avg),
+                    ('Intensive', intensive_meter.avg),
                     ('F1', results['F1']),
                     ('EM', results['EM'])]
     if use_squad_v2:

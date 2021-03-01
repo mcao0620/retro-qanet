@@ -232,7 +232,7 @@ class FV(nn.Module):
         self.relu = nn.ReLU()
 
         self.maxpool = nn.MaxPool1d(3)
-
+        #veify sizes <<<<<<<<
         self.verify_linear = nn.Linear(2 * hidden_size, hidden_size)
 
         self.softmax = nn.Softmax(0)
@@ -250,7 +250,8 @@ class FV(nn.Module):
         #y_i = SOFTMAX(LINEAR(M_x)) to produce logits
         y_i = self.softmax(self.verify_linear(M_x))
 
-        return y_i
+        #do we take the max? average?
+        return max(y_i)
 
 
 class IntensiveOutput(nn.Module):
@@ -262,8 +263,8 @@ class IntensiveOutput(nn.Module):
         super(IntensiveOutput, self).__init__()
         self.ifv = FV(hidden_size)
         #need to make these the size of M_i
-        self.Ws = torch.tensor(torch.random(1,2 * hidden_size), requires_grad=True)
-        self.We = torch.tensor(torch.random(1,2 * hidden_size), requires_grad=True)
+        self.Ws = nn.Parameter(torch.zeros(1, hidden_size * 2))
+        self.We = nn.Parameter(torch.zeros(1, hidden_size * 2))
 
         self.softmax = nn.Softmax(0)
 
@@ -287,3 +288,30 @@ class SketchyOutput(nn.Module):
         y_i = self.efv(M_0, M_1, M_2)       
 
         return y_i
+
+class RV_TAV(nn.Module):
+    """Rear Verification and Threshold Answer Verification layer utilized as part of Retrospective reader
+    to augment our QANet by combining the answerability determined by our sketchy model and ur intensive 
+    model either returning a span or no answer at all.
+    Args:
+        hidden_size (int): Hidden size used in the BiDAF model.
+    """
+    def __init__(self):
+        super(RV, self).__init__()
+
+        self.beta = nn.Parameter(torch.zeros(1, 1) + 0.5) #Allows us to train weights for RV
+        self.ans = nn.Parameter(torch.zeros(1, 1) + 0.75) #Allows us to train Threshold for TAV
+     
+    def forward(intensive_prediction, sketchy_prediction, s_pred, e_pred)
+        X = torch.tensor([[s + r for e in e_pred] for s in s_pred])
+        max_ans_pos = ((X == max(X)).nonzero()) #Extractss the postions of the best span predictions
+        valid_max = [s < e for s, e in max_ans_pos[0]] #Finds which span predictions are valid
+        answerable = self.beta * intensive_prediction + (1-self.beta) * sketchy_prediction #Combines answerability estimate from both the sketchy and intensive models
+        if answerable > self.ans and sum(valid_max) > 0:
+            s, e = max_ans_pos[0][valid_max.index(1)] #Returns the first valid max span prediction
+            return s, e
+        else:
+            return None, None #No Answer Representation
+            
+            
+
