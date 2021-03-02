@@ -49,7 +49,7 @@ def main(args):
     # Get Sketchy model
     log.info('Building model...')
     sketchy_model = #QANET SKETCHY MODEL INTITIATION
-    model = nn.DataParallel(sketchy_model, args.sketchy_gpu_ids)
+    sketchy_model = nn.DataParallel(sketchy_model, args.sketchy_gpu_ids)
     if args.load_path_s:
         log.info(f'Loading checkpoint from {args.load_path_s}...')
         sketchy_model, sketchy_step = util.load_model(sketchy_model, args.load_path_s, args.sketchy_gpu_ids)
@@ -65,7 +65,7 @@ def main(args):
     # Get Intensive model
     log.info('Building model...')
     intensive_model = #QANET INTENSIVE MODEL INTITIATION
-    model = nn.DataParallel(intensive_model, args.intensive_gpu_ids)
+    intensive_model = nn.DataParallel(intensive_model, args.intensive_gpu_ids)
     if args.load_path_i:
         log.info(f'Loading checkpoint from {args.load_path_i}...')
         intensive_model, intensive_step = util.load_model(intensive_model, args.load_path_i, args.intensive_gpu_ids)

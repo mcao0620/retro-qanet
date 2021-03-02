@@ -303,7 +303,7 @@ class RV_TAV(nn.Module):
         self.ans = nn.Parameter(torch.zeros(1, 1) + 0.75) #Allows us to train Threshold for TAV
      
     def forward(intensive_prediction, sketchy_prediction, s_pred, e_pred)
-        X = torch.tensor([[s + r for e in e_pred] for s in s_pred])
+        X = torch.tensor([[s * e for e in e_pred] for s in s_pred])
         max_ans_pos = ((X == max(X)).nonzero()) #Extractss the postions of the best span predictions
         valid_max = [s < e for s, e in max_ans_pos[0]] #Finds which span predictions are valid
         answerable = self.beta * intensive_prediction + (1-self.beta) * sketchy_prediction #Combines answerability estimate from both the sketchy and intensive models

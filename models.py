@@ -71,3 +71,13 @@ class BiDAF(nn.Module):
 
         return out
 
+class QanetSketchy(nn.module):
+    #Creates Sketchy Qanet Model
+
+class QanetIntensive(nn.module):
+    #Creates Intensive Qanet Model
+
+class QanetRetro(nn.module):
+    #intializes intensive model
+    #initializes sketchy model
+    #Call RV_TAV Module
