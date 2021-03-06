@@ -158,6 +158,10 @@ def get_train_args():
                         type=float,
                         default=0.999,
                         help='Decay rate for exponential moving average of parameters.')
+    parser.add_argument('--model_name',
+                        type=str,
+                        default='intensive',
+                        help='Name to identify training to be run.')
 
 
     args = parser.parse_args()

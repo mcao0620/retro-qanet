@@ -23,18 +23,33 @@ class Embedding(nn.Module):
         hidden_size (int): Size of hidden activations.
         drop_prob (float): Probability of zero-ing out activations
     """
-    def __init__(self, word_vectors, hidden_size, drop_prob):
+    def __init__(self, word_vectors, char_vectors, hidden_size, drop_prob):
         super(Embedding, self).__init__()
         self.drop_prob = drop_prob
-        self.embed = nn.Embedding.from_pretrained(word_vectors)
+        self.hidden_size = hidden_size
+        self.word_embed = nn.Embedding.from_pretrained(word_vectors)
+        self.char_embed = nn.Embedding.from_pretrained(char_vectors)
+        self.cnn = nn.Conv1d(char_vectors.size(1), hidden_size, kernel_size=5, bias=True)
         self.proj = nn.Linear(word_vectors.size(1), hidden_size, bias=False)
-        self.hwy = HighwayEncoder(2, hidden_size)
+        self.hwy = HighwayEncoder(2, 2 * hidden_size)
 
-    def forward(self, x):
-        emb = self.embed(x)   # (batch_size, seq_len, embed_size)
-        emb = F.dropout(emb, self.drop_prob, self.training)
-        emb = self.proj(emb)  # (batch_size, seq_len, hidden_size)
-        emb = self.hwy(emb)   # (batch_size, seq_len, hidden_size)
+    def forward(self, w, c):
+        batch_size, sent_len, word_len = c.size()
+
+        c = self.char_embed(c.view(-1, word_len))
+        c = F.dropout(c, self.drop_prob, self.training) # apply dropout
+
+        c_emb = self.cnn(c.permute(0, 2, 1)) # Conv1D Layer
+        c_emb = torch.max(F.relu(c_emb), dim=-1)[0] # Maxpool
+        c_emb = c_emb.view(batch_size, sent_len, self.hidden_size) 
+
+        w_emb = self.word_embed(w)   # (batch_size, seq_len, embed_size)
+        w_emb = F.dropout(w_emb, self.drop_prob, self.training)
+        w_emb = self.proj(w_emb)  # (batch_size, seq_len, hidden_size)
+
+        emb = torch.cat((c_emb, w_emb), dim=-1) # concatenate word and char embeddings
+
+        emb = self.hwy(emb)   # (batch_size, seq_len, 2 * hidden_size)
 
         return emb
 
@@ -99,7 +114,7 @@ class RNNEncoder(nn.Module):
         # Sort by length and pack sequence for RNN
         lengths, sort_idx = lengths.sort(0, descending=True)
         x = x[sort_idx]     # (batch_size, seq_len, input_size)
-        x = pack_padded_sequence(x, lengths, batch_first=True)
+        x = pack_padded_sequence(x, lengths.cpu(), batch_first=True)
 
         # Apply RNN
         x, _ = self.rnn(x)  # (batch_size, seq_len, 2 * hidden_size)
