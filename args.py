@@ -121,6 +121,14 @@ def get_train_args():
                         type=float,
                         default=0,
                         help='Sketchy L2 weight decay.')
+    arser.add_argument('--lr_r',
+                        type=float,
+                        default=0.5,
+                        help='Retro Learning rate.')
+    parser.add_argument('--l2_wd_r',
+                        type=float,
+                        default=0,
+                        help='Retro L2 weight decay.')
     parser.add_argument('--num_epochs',
                         type=int,
                         default=30,

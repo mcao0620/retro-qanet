@@ -10,6 +10,7 @@ import torch.nn.functional as F
 
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from util import masked_softmax
+from util import discretize
 
 
 class Embedding(nn.Module):
@@ -317,16 +318,15 @@ class RV_TAV(nn.Module):
         self.beta = nn.Parameter(torch.zeros(1, 1) + 0.5) #Allows us to train weights for RV
         self.ans = nn.Parameter(torch.zeros(1, 1) + 0.75) #Allows us to train Threshold for TAV
      
-    def forward(intensive_prediction, sketchy_prediction, s_pred, e_pred)
-        X = torch.tensor([[s * e for e in e_pred] for s in s_pred])
-        max_ans_pos = ((X == max(X)).nonzero()) #Extractss the postions of the best span predictions
-        valid_max = [s < e for s, e in max_ans_pos[0]] #Finds which span predictions are valid
+    def forward(intensive_prediction, sketchy_prediction, s_pred, e_pred, max_len=15, use_squad_v2=True)
+        starts, ends = discretize(s_pred.exp(), e_pred.exp(), max_len, use_squad_v2)
         answerable = self.beta * intensive_prediction + (1-self.beta) * sketchy_prediction #Combines answerability estimate from both the sketchy and intensive models
-        if answerable > self.ans and sum(valid_max) > 0:
-            s, e = max_ans_pos[0][valid_max.index(1)] #Returns the first valid max span prediction
-            return s, e
+        if answerable > self.ans and ends[0] != 0:
+            s, e = s_pred, e_pred
         else:
-            return None, None #No Answer Representation
+            s, e = []
+        return s, e
+
             
             
 

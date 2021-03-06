@@ -43,9 +43,12 @@ def main(args):
     log.info('Building model...')
     if args.model_name == 'sketchy':
         model = #SKETCHY
-    else:
+    elif args.model_name == 'intensive':
         model = #INTENSIVE
+    elif args.model_name == 'retro':
+        model = #QANET --- Requires that we make a forward pass through both Sketchy and Intensive
     model = nn.DataParallel(model, args.gpu_ids)
+
     if args.load_path:
         log.info(f'Loading checkpoint from {args.load_path}...')
         model, step = util.load_model(model, args.load_path, args.gpu_ids)
@@ -113,8 +116,11 @@ def main(args):
                     log_p2 = None
                     loss = bceLoss(yi, (y1 == -1))
                 elif args.model_name == 'intensive':                 
-                    yi, log_p1, log_p2 = intensive_model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
+                    yi, log_p1, log_p2 = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
                     loss = args.alpha_1 * bceLoss(yi, (y1 == -1)) + args.alpha_2 * (ceLoss(log_p1, y1) + ceLoss(log_p2, y2))
+                elif arg.model_name == 'retro':
+                    log_p1, log_p2 = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
+                    loss = F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2)
                 else:
                     raise ValueError('invalid --model_name, sketchy or intensive required')
 
@@ -196,6 +202,9 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2):
                      # Get F1 and EM scores
                     p1, p2 = log_p1.exp(), log_p2.exp()
                     starts, ends = util.discretize(p1, p2, max_len, use_squad_v2)
+                elif args.model_name == 'retro':
+                    log_p1, log_p2 = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
+                    loss = F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2)
                 else:
                     raise ValueError('invalid --model_name, sketchy or intensive required')
                 meter.update(loss.item(), batch_size)
