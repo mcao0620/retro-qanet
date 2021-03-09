@@ -140,7 +140,7 @@ def get_train_args():
     parser.add_argument('--metric_name',
                         type=str,
                         default='F1',
-                        choices=('NLL', 'EM', 'F1'),
+                        choices=('Loss', 'EM', 'F1'),
                         help='Name of dev metric to determine best checkpoint.')
     parser.add_argument('--max_checkpoints',
                         type=int,
