@@ -220,3 +220,136 @@ class BiDAFOutput(nn.Module):
         log_p2 = masked_softmax(logits_2.squeeze(), mask, log_softmax=True)
 
         return log_p1, log_p2
+
+
+class ConvBlock(nn.Module):
+    """
+    """
+
+    def __init__(self, in_channels, out_channels, kernel_size, bias=True):
+        super(ConvBlock, self).__init__()
+
+        self.depthwise = nn.Conv1d(
+            in_channels, in_channels, kernel_size=kernel_size, padding=kernel_size//2, groups=in_channels, bias=False)
+
+        self.pointwise = nn.Conv1d(
+            in_channels, out_channels, kernel_size=1, padding=0, bias=bias)
+
+    def forward(self, x):
+
+        out = self.depthwise(x)
+        out = self.pointwise(out)
+
+        return F.relu(out + x)
+
+
+class FFNBlock(nn.Module):
+
+    def __init__(self, d_model, dropout=0.1, hidden_size=8):
+        super(FFNBlock, self).__init__()
+        self.norm = nn.LayerNorm(d_model)
+        self.ffn_layer = nn.Linear(d_model, d_model, bias=True)
+        self.dropout_layer = nn.Dropout(dropout)
+
+    def forward(self, x):
+        norm_out = self.norm(x)
+        ffn_layer_out = self.ffn_layer(norm_out)
+
+        return self.dropout_layer(F.relu(x + ffn_layer_out))
+
+
+class SelfAttentionBlock(nn.Module):
+
+    def __init__(self, d_model, num_heads, dropout=0.1):
+        super(SelfAttentionBlock,  self).__init__()
+        self.norm = nn.LayerNorm(d_model)
+        self.self_attn_layer = nn.MultiheadAttention(
+            d_model, num_heads, dropout)
+
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x):
+        norm_out = self.norm(x)
+
+        attn_output, attn_output_weights = self.self_attn_layer(
+            norm_out, norm_out, norm_out)
+
+        return self.dropout(x + attn_output)
+
+
+class PositionalEncoding(nn.Module):
+    """ Position Encoder which injects positional structure and information of to the input sequence.
+    This particular implementation was derived from the one implemented on the pytorch transformer in the pytorch documentation(https://pytorch.org/tutorials/beginner/transformer_tutorial.html#define-the-model)
+    Args:
+        d_model () :
+        dropout () :
+        max_len () :
+    """
+
+    def __init__(self, d_model, dropout=0.1, max_len=5000):
+        super(PositionalEncoding, self).__init__()
+        self.dropout = nn.Dropout(p=dropout)
+
+        pe = torch.zeros(max_len, d_model)
+        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
+        div_term = torch.exp(torch.arange(
+            0, d_model, 2).float() * (-math.log(10000.0) / d_model))
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        pe = pe.unsqueeze(0).transpose(0, 1)
+        self.register_buffer('pe', pe)
+
+    def forward(self, x):
+        x = x + self.pe[:x.size(0), :]
+        return self.dropout(x)
+
+
+class EmbeddingResizer(nn.Module):
+    """ Resizes input embedding to hidden size of 128 that can be passed to the convolution blocks
+    Args:
+    """
+
+    def __init__(self, in_channels, out_channels,
+                 kernel_size=1, stride=1, padding=0, groups=1, bias=False):
+        super(EmbeddingResizer, self).__init__()
+
+        self.out = nn.Conv1d(
+            in_channels, out_channels,
+            kernel_size, stride=stride,
+            padding=padding, groups=groups, bias=bias)
+        # nn.init.kaiming_normal_(self.out.weight, nonlinearity='relu')
+
+    def forward(self, x):
+
+        return F.relu(self.out(x))
+
+
+class StackedEncoder(nn.Module):
+    """ Base module for the Embedding and Model Encoder used in QANet.
+    Args:
+    """
+
+    def __init__(self, num_conv_blocks, kernel_size, num_heads=8, d_model=128, dropout=0.1):
+
+        super(StackedEncoder, self).__init__()
+        self.pos_encoder = PositionalEncoding(d_model, dropout)
+
+        self.conv_blocks = nn.ModuleList([ConvBlock(d_model, d_model, kernel_size)
+                                          for _ in range(num_conv_blocks)])
+
+        self.self_attn_block = SelfAttentionBlock(d_model, num_heads, dropout)
+        self.ffn_block = FFNBlock(d_model)
+
+        self.num_conv_blocks = num_conv_blocks
+
+        self.dropout = dropout
+
+    def forward(self, x):
+        x = self.pos_encoder(x)
+
+        for conv_block in self.conv_blocks:
+            x = conv_block(x)
+
+        x = self.self_attn_block(x)
+
+        return self.ffn_block(x)
