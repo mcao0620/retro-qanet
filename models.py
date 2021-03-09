@@ -70,3 +70,21 @@ class BiDAF(nn.Module):
         out = self.out(att, mod, c_mask)  # 2 tensors, each (batch_size, c_len)
 
         return out
+
+class RetroTrainer(nn.Module):
+    def __init__(self):
+        super(RetroTrainer, self).__init__()
+        self.RV_TAV(nn.Module) = layers.RV_TAV()
+    def forward(intensive_prediction, sketchy_prediction, s_pred, e_pred):
+        RV_TAV(intensive_prediction, sketchy_prediction, s_pred, e_pred, max_len=15, use_squad_v2=True)
+
+class QanetSketchy(nn.module):
+    #Creates Sketchy Qanet Model
+
+class QanetIntensive(nn.module):
+    #Creates Intensive Qanet Model
+
+class QanetRetro(nn.module):
+    #intializes intensive model
+    #initializes sketchy model
+    #Call RV_TAV Module

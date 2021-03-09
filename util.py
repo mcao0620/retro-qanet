@@ -272,7 +272,7 @@ class CheckpointSaver:
         if self.log is not None:
             self.log.info(message)
 
-    def save(self, step, model, metric_val, device):
+    def save(self, step, model, metric_val, device, model_name=''):
         """Save model parameters to disk.
 
         Args:
@@ -289,14 +289,14 @@ class CheckpointSaver:
         model.to(device)
 
         checkpoint_path = os.path.join(self.save_dir,
-                                       f'step_{step}.pth.tar')
+                                       f'{model_name}_step_{step}.pth.tar')
         torch.save(ckpt_dict, checkpoint_path)
         self._print(f'Saved checkpoint: {checkpoint_path}')
 
         if self.is_best(metric_val):
             # Save the best model
             self.best_val = metric_val
-            best_path = os.path.join(self.save_dir, 'best.pth.tar')
+            best_path = os.path.join(self.save_dir, f'{model_name}_best.pth.tar')
             shutil.copy(checkpoint_path, best_path)
             self._print(f'New best checkpoint at step {step}...')
 
