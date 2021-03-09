@@ -407,10 +407,10 @@ class FV(nn.Module):
         m_1 = self.relu(M_1)
         m_2 = self.relu(M_2)
         # concatenate the results
-        #z = torch.cat((m_0, m_1, m_2), dim=0)
+        # z = torch.cat((m_0, m_1, m_2), dim=0)
         # run 1d max pool to get M_x
-        #M_x = self.maxpool(m_2)
-        #print(M_x.shape)
+        # M_x = self.maxpool(m_2)
+        # print(M_x.shape)
         sq1 = torch.max(m_2, dim=1)[0]
         # y_i = SOFTMAX(LINEAR(M_x)) to produce logits
         y_i = self.softmax(self.verify_linear(sq1))
@@ -419,26 +419,26 @@ class FV(nn.Module):
         return torch.flatten(y_i)
 
 
-# class IntensiveOutput(nn.Module):
-#         """Outputs the results of running the sample through the intensive module, implementing internal front verification and a span predicition
-#     Args:
-#         hidden_size (int): Hidden size used in the BiDAF model.
-#     """
-#     def __init__(self, hidden_size):
-#         super(IntensiveOutput, self).__init__()
-#         self.ifv = FV(hidden_size)
-#         # need to make these the size of M_i
-#         self.Ws = nn.Parameter(torch.zeros(1, hidden_size * 2))
-#         self.We = nn.Parameter(torch.zeros(1, hidden_size * 2))
+class IntensiveOutput(nn.Module):
+        """Outputs the results of running the sample through the intensive module, implementing internal front verification and a span predicition
+    Args:
+        hidden_size (int): Hidden size used in the BiDAF model.
+    """
+    def __init__(self, hidden_size):
+        super(IntensiveOutput, self).__init__()
+        self.ifv = FV(hidden_size)
+        # need to make these the size of M_i
+        self.Ws = nn.Parameter(torch.zeros(hidden_size, 1))
+        self.We = nn.Parameter(torch.zeros(hidden_size, 1))
 
-#         self.softmax = nn.Softmax(0)
+        self.softmax = nn.Softmax(0)
 
-#     def forward(self, M_0, M_1, M_2):
-#         y_i = self.ifv(M_0, M_1, M_2)
-#         s = self.softmax(Ws @ torch.cat(M_0, M_1))
-#         e = self.softmax(We @ torch.cat(M_0, M_2))
+    def forward(self, M_0, M_1, M_2):
+        y_i = self.ifv(M_0, M_1, M_2)
+        s = self.softmax(Ws @ torch.cat(M_0, M_1))
+        e = self.softmax(We @ torch.cat(M_0, M_2))
 
-#         return y_i, (s, e)
+        return y_i, (s, e)
 
 class SketchyOutput(nn.Module):
     """Outputs the results of running the sample throuhg the sketchy reading module, implements external front verification

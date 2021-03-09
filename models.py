@@ -157,15 +157,33 @@ class IntensiveReader(nn.Module):
 
         hidden_size *= 2    # update hidden size for other layers due to char embeddings
 
-        self.enc = None     # embedding encoder layer
 
-        self.att = None     # context-query attention layer
+        self.resizer = layers.EmbeddingResizer(in_channels=hidden_size,
+                                               out_channels=128)
 
-        self.mod = None     # model layer
+        self.model_resizer = layers.EmbeddingResizer(in_channels=512,
+                                               out_channels=128)
 
-        self.efv = None     # external front verifier
+        self.enc = layers.StackedEncoder(num_conv_blocks=7,
+                                         kernel_size=7,
+                                         dropout=drop_prob)     # embedding encoder layer
 
-        self.out = None     # output layer
+        self.att = layers.BiDAFAttention(hidden_size=128,
+                                         drop_prob=drop_prob)     # context-query attention layer
+
+        self.mod1 = layers.StackedEncoder(num_conv_blocks=2,
+                                         kernel_size=7,
+                                         dropout=drop_prob)     # model layer
+
+        self.mod2 = layers.StackedEncoder(num_conv_blocks=2,
+                                         kernel_size=7,
+                                         dropout=drop_prob)     # model layer
+
+        self.mod3 = layers.StackedEncoder(num_conv_blocks=2,
+                                         kernel_size=7,
+                                         dropout=drop_prob)     # model layer
+
+        self.out = layers.IntensiveOutput(hidden_size=128)     # output layer
     
 
     def forward(self, cw_idxs, qw_idxs, cc_idxs, qc_idxs):
@@ -176,14 +194,24 @@ class IntensiveReader(nn.Module):
         c_emb = self.emb(cw_idxs, cc_idxs)         # (batch_size, c_len, hidden_size)
         q_emb = self.emb(qw_idxs, qc_idxs)         # (batch_size, q_len, hidden_size)
 
-
-        c_enc = self.enc(c_emb, c_len)    # (batch_size, c_len, 2 * hidden_size)
-        q_enc = self.enc(q_emb, q_len)    # (batch_size, q_len, 2 * hidden_size)
+        c_emb = self.resizer(c_emb)
+        q_emb = self.resizer(q_emb)
+        
+        c_enc = self.enc(c_emb)    # (batch_size, c_len, 2 * hidden_size)
+        q_enc = self.enc(q_emb)    # (batch_size, q_len, 2 * hidden_size)
 
         att = self.att(c_enc, q_enc,
                        c_mask, q_mask)    # (batch_size, c_len, 8 * hidden_size)
 
-        mod = self.mod(att, c_len)        # (batch_size, c_len, 2 * hidden_size)
+        att = self.model_resizer(att)
+
+        mod1 = self.mod1(att)        # (batch_size, c_len, 2 * hidden_size)
+        mod2 = self.mod2(mod1)        # (batch_size, c_len, 2 * hidden_size)
+        mod3 = self.mod3(mod2)        # (batch_size, c_len, 2 * hidden_size)
+
+        out = self.out(mod1, mod2, mod3)
+
+        return out
 
 
 
