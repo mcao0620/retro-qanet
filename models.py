@@ -204,3 +204,20 @@ class RetroQANet(nn.Module):
                        c_mask, q_mask)    # (batch_size, c_len, 8 * hidden_size)
 
         mod = self.mod(att, c_len)        # (batch_size, c_len, 2 * hidden_size)
+class RetroTrainer(nn.Module):
+    def __init__(self):
+        super(RetroTrainer, self).__init__()
+        self.RV_TAV(nn.Module) = layers.RV_TAV()
+    def forward(intensive_prediction, sketchy_prediction, s_pred, e_pred):
+        RV_TAV(intensive_prediction, sketchy_prediction, s_pred, e_pred, max_len=15, use_squad_v2=True)
+
+class QanetSketchy(nn.module):
+    #Creates Sketchy Qanet Model
+
+class QanetIntensive(nn.module):
+    #Creates Intensive Qanet Model
+
+class QanetRetro(nn.module):
+    #intializes intensive model
+    #initializes sketchy model
+    #Call RV_TAV Module

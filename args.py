@@ -105,6 +105,30 @@ def get_train_args():
                         type=float,
                         default=0,
                         help='L2 weight decay.')
+     parser.add_argument('--lr_i',
+                        type=float,
+                        default=0.5,
+                        help='Intensive Learning rate.')
+    parser.add_argument('--l2_wd_i',
+                        type=float,
+                        default=0,
+                        help='Intensive L2 weight decay.')
+    parser.add_argument('--lr_s',
+                        type=float,
+                        default=0.5,
+                        help='Sketchy Learning rate.')
+    parser.add_argument('--l2_wd_s',
+                        type=float,
+                        default=0,
+                        help='Sketchy L2 weight decay.')
+    arser.add_argument('--lr_r',
+                        type=float,
+                        default=0.5,
+                        help='Retro Learning rate.')
+    parser.add_argument('--l2_wd_r',
+                        type=float,
+                        default=0,
+                        help='Retro L2 weight decay.')
     parser.add_argument('--num_epochs',
                         type=int,
                         default=30,
@@ -134,6 +158,19 @@ def get_train_args():
                         type=float,
                         default=0.999,
                         help='Decay rate for exponential moving average of parameters.')
+    parser.add_argument('--ema_decay_s',
+                        type=float,
+                        default=0.999,
+                        help='Decay rate for exponential moving average of parameters.')
+    parser.add_argument('--ema_decay_i',
+                        type=float,
+                        default=0.999,
+                        help='Decay rate for exponential moving average of parameters.')
+    parser.add_argument('--model_name',
+                        type=str,
+                        default='intensive',
+                        help='Name to identify training to be run.')
+
 
     args = parser.parse_args()
 
@@ -242,3 +279,11 @@ def add_train_test_args(parser):
                         type=str,
                         default=None,
                         help='Path to load as a model checkpoint.')
+    parser.add_argument('--load_path_s',
+                        type=str,
+                        default=None,
+                        help='Path to load as a sketchy model checkpoint.')
+    parser.add_argument('--load_path_i',
+                        type=str,
+                        default=None,
+                        help='Path to load as an intensive model checkpoint.')
