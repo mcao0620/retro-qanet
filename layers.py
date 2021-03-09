@@ -395,8 +395,8 @@ class FV(nn.Module):
         super(FV, self).__init__()
         self.relu = nn.ReLU()
 
-        self.maxpool = nn.MaxPool1d(3)
-        # veify sizes <<<<<<<<
+        self.maxpool = nn.MaxPool1d(hidden_size)
+        # verify sizes <<<<<<<<
         self.verify_linear = nn.Linear(hidden_size, 1)
 
         self.softmax = nn.Softmax(0)
@@ -406,16 +406,17 @@ class FV(nn.Module):
         m_0 = self.relu(M_0)
         m_1 = self.relu(M_1)
         m_2 = self.relu(M_2)
-        # concatinate the results
+        # concatenate the results
         #z = torch.cat((m_0, m_1, m_2), dim=0)
         # run 1d max pool to get M_x
-        #M_x = self.maxpool(z)
+        #M_x = self.maxpool(m_2)
+        #print(M_x.shape)
+        sq1 = torch.max(m_2, dim=1)[0]
         # y_i = SOFTMAX(LINEAR(M_x)) to produce logits
-        y_i = self.softmax(self.verify_linear(m_2))
+        y_i = self.softmax(self.verify_linear(sq1))
 
         # do we take the max? average?
-        print(y_i.shape)
-        return max(y_i)
+        return torch.flatten(y_i)
 
 
 # class IntensiveOutput(nn.Module):
