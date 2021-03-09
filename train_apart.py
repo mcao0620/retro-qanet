@@ -204,17 +204,17 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
 
             # Forward
             y1, y2 = y1.to(device), y2.to(device)
-            if args.model_name == 'sketchy':
+            if model_name == 'sketchy':
                 yi = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
                 loss = bceLoss(yi, torch.where(y1 == -1, 0, 1).type_as(yi))
                 starts, ends = [[y1[x] if (yi[x] > 0.5) else 0 for x in ids], [y2[x] if (yi[x] > 0.5) else 0 for x in ids]]
-            elif args.model_name == 'intensive':                 
+            elif model_name == 'intensive':                 
                 yi, log_p1, log_p2 = intensive_model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
                 loss = args.alpha_1 * bceLoss(yi, torch.where(y1 == -1, 0, 1).type_as(yi)) + args.alpha_2 * (ceLoss(log_p1, y1) + ceLoss(log_p2, y2))
                     # Get F1 and EM scores
                 p1, p2 = log_p1.exp(), log_p2.exp()
                 starts, ends = util.discretize(p1, p2, max_len, use_squad_v2)
-            elif args.model_name == 'retro':
+            elif model_name == 'retro':
                 log_p1, log_p2 = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
                 loss = F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2)
             else:
