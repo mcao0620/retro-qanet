@@ -167,7 +167,7 @@ def main(args):
                                                   args.max_ans_len,
                                                   args.use_squad_v2,
                                                   model_name=args.model_name)
-                    saver.save(step, model, results[args.metric_name], device, model_name=model_name)
+                    saver.save(step, model, results[args.metric_name], device, model_name=args.model_name)
                     ema.resume(model)
 
                     # Log to console
