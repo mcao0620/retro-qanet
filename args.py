@@ -105,7 +105,7 @@ def get_train_args():
                         type=float,
                         default=0,
                         help='L2 weight decay.')
-     parser.add_argument('--lr_i',
+    parser.add_argument('--lr_i',
                         type=float,
                         default=0.5,
                         help='Intensive Learning rate.')
@@ -121,7 +121,7 @@ def get_train_args():
                         type=float,
                         default=0,
                         help='Sketchy L2 weight decay.')
-    arser.add_argument('--lr_r',
+    parser.add_argument('--lr_r',
                         type=float,
                         default=0.5,
                         help='Retro Learning rate.')

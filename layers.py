@@ -4,6 +4,7 @@ Author:
     Chris Chute (chute@stanford.edu)
 """
 
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -24,13 +25,15 @@ class Embedding(nn.Module):
         hidden_size (int): Size of hidden activations.
         drop_prob (float): Probability of zero-ing out activations
     """
+
     def __init__(self, word_vectors, char_vectors, hidden_size, drop_prob):
         super(Embedding, self).__init__()
         self.drop_prob = drop_prob
         self.hidden_size = hidden_size
         self.word_embed = nn.Embedding.from_pretrained(word_vectors)
         self.char_embed = nn.Embedding.from_pretrained(char_vectors)
-        self.cnn = nn.Conv1d(char_vectors.size(1), hidden_size, kernel_size=5, bias=True)
+        self.cnn = nn.Conv1d(char_vectors.size(
+            1), hidden_size, kernel_size=5, bias=True)
         self.proj = nn.Linear(word_vectors.size(1), hidden_size, bias=False)
         self.hwy = HighwayEncoder(2, 2 * hidden_size)
 
@@ -38,17 +41,18 @@ class Embedding(nn.Module):
         batch_size, sent_len, word_len = c.size()
 
         c = self.char_embed(c.view(-1, word_len))
-        c = F.dropout(c, self.drop_prob, self.training) # apply dropout
+        c = F.dropout(c, self.drop_prob, self.training)  # apply dropout
 
-        c_emb = self.cnn(c.permute(0, 2, 1)) # Conv1D Layer
-        c_emb = torch.max(F.relu(c_emb), dim=-1)[0] # Maxpool
-        c_emb = c_emb.view(batch_size, sent_len, self.hidden_size) 
+        c_emb = self.cnn(c.permute(0, 2, 1))  # Conv1D Layer
+        c_emb = torch.max(F.relu(c_emb), dim=-1)[0]  # Maxpool
+        c_emb = c_emb.view(batch_size, sent_len, self.hidden_size)
 
         w_emb = self.word_embed(w)   # (batch_size, seq_len, embed_size)
         w_emb = F.dropout(w_emb, self.drop_prob, self.training)
         w_emb = self.proj(w_emb)  # (batch_size, seq_len, hidden_size)
 
-        emb = torch.cat((c_emb, w_emb), dim=-1) # concatenate word and char embeddings
+        # concatenate word and char embeddings
+        emb = torch.cat((c_emb, w_emb), dim=-1)
 
         emb = self.hwy(emb)   # (batch_size, seq_len, 2 * hidden_size)
 
@@ -67,6 +71,7 @@ class HighwayEncoder(nn.Module):
         num_layers (int): Number of layers in the highway encoder.
         hidden_size (int): Size of hidden activations.
     """
+
     def __init__(self, num_layers, hidden_size):
         super(HighwayEncoder, self).__init__()
         self.transforms = nn.ModuleList([nn.Linear(hidden_size, hidden_size)
@@ -96,6 +101,7 @@ class RNNEncoder(nn.Module):
         num_layers (int): Number of layers of RNN cells to use.
         drop_prob (float): Probability of zero-ing out activations.
     """
+
     def __init__(self,
                  input_size,
                  hidden_size,
@@ -146,6 +152,7 @@ class BiDAFAttention(nn.Module):
         hidden_size (int): Size of hidden activations.
         drop_prob (float): Probability of zero-ing out activations.
     """
+
     def __init__(self, hidden_size, drop_prob=0.1):
         super(BiDAFAttention, self).__init__()
         self.drop_prob = drop_prob
@@ -159,11 +166,14 @@ class BiDAFAttention(nn.Module):
     def forward(self, c, q, c_mask, q_mask):
         batch_size, c_len, _ = c.size()
         q_len = q.size(1)
-        s = self.get_similarity_matrix(c, q)        # (batch_size, c_len, q_len)
+        # (batch_size, c_len, q_len)
+        s = self.get_similarity_matrix(c, q)
         c_mask = c_mask.view(batch_size, c_len, 1)  # (batch_size, c_len, 1)
         q_mask = q_mask.view(batch_size, 1, q_len)  # (batch_size, 1, q_len)
-        s1 = masked_softmax(s, q_mask, dim=2)       # (batch_size, c_len, q_len)
-        s2 = masked_softmax(s, c_mask, dim=1)       # (batch_size, c_len, q_len)
+        # (batch_size, c_len, q_len)
+        s1 = masked_softmax(s, q_mask, dim=2)
+        # (batch_size, c_len, q_len)
+        s2 = masked_softmax(s, c_mask, dim=1)
 
         # (bs, c_len, q_len) x (bs, q_len, hid_size) => (bs, c_len, hid_size)
         a = torch.bmm(s1, q)
@@ -186,8 +196,10 @@ class BiDAFAttention(nn.Module):
             Equation 1 in https://arxiv.org/abs/1611.01603
         """
         c_len, q_len = c.size(1), q.size(1)
-        c = F.dropout(c, self.drop_prob, self.training)  # (bs, c_len, hid_size)
-        q = F.dropout(q, self.drop_prob, self.training)  # (bs, q_len, hid_size)
+        # (bs, c_len, hid_size)
+        c = F.dropout(c, self.drop_prob, self.training)
+        # (bs, q_len, hid_size)
+        q = F.dropout(q, self.drop_prob, self.training)
 
         # Shapes: (batch_size, c_len, q_len)
         s0 = torch.matmul(c, self.c_weight).expand([-1, -1, q_len])
@@ -212,6 +224,7 @@ class BiDAFOutput(nn.Module):
         hidden_size (int): Hidden size used in the BiDAF model.
         drop_prob (float): Probability of zero-ing out activations.
     """
+
     def __init__(self, hidden_size, drop_prob):
         super(BiDAFOutput, self).__init__()
         self.att_linear_1 = nn.Linear(8 * hidden_size, 1)
@@ -252,11 +265,11 @@ class ConvBlock(nn.Module):
             in_channels, out_channels, kernel_size=1, padding=0, bias=bias)
 
     def forward(self, x):
-
+        x = torch.transpose(x, 1, 2)
         out = self.depthwise(x)
         out = self.pointwise(out)
 
-        return F.relu(out + x)
+        return torch.transpose(F.relu(out + x), 1, 2)
 
 
 class FFNBlock(nn.Module):
@@ -336,8 +349,8 @@ class EmbeddingResizer(nn.Module):
         # nn.init.kaiming_normal_(self.out.weight, nonlinearity='relu')
 
     def forward(self, x):
-
-        return F.relu(self.out(x))
+        x = torch.transpose(x, 1, 2)
+        return torch.transpose(F.relu(self.out(x)), 1, 2)
 
 
 class StackedEncoder(nn.Module):
@@ -369,96 +382,101 @@ class StackedEncoder(nn.Module):
         x = self.self_attn_block(x)
 
         return self.ffn_block(x)
+
+
 class FV(nn.Module):
     """Front Verification layer utilized as part of Retrospective reader
     to augment our QANet by addressing the question of answerability
     Args:
         hidden_size (int): Hidden size used in the BiDAF model.
     """
+
     def __init__(self, hidden_size):
         super(FV, self).__init__()
         self.relu = nn.ReLU()
 
         self.maxpool = nn.MaxPool1d(3)
-        #veify sizes <<<<<<<<
-        self.verify_linear = nn.Linear(2 * hidden_size, hidden_size)
+        # veify sizes <<<<<<<<
+        self.verify_linear = nn.Linear(hidden_size, 1)
 
         self.softmax = nn.Softmax(0)
 
-
     def forward(self, M_0, M_1, M_2):
-        #relu each M_i
+        # relu each M_i
         m_0 = self.relu(M_0)
         m_1 = self.relu(M_1)
         m_2 = self.relu(M_2)
-        #concatinate the results
-        z = torch.cat(m_0, m_1, m_2)
-        #run 1d max pool to get M_x
-        M_x = self.maxpool(z)
-        #y_i = SOFTMAX(LINEAR(M_x)) to produce logits
-        y_i = self.softmax(self.verify_linear(M_x))
+        # concatinate the results
+        #z = torch.cat((m_0, m_1, m_2), dim=0)
+        # run 1d max pool to get M_x
+        #M_x = self.maxpool(z)
+        # y_i = SOFTMAX(LINEAR(M_x)) to produce logits
+        y_i = self.softmax(self.verify_linear(m_2))
 
-        #do we take the max? average?
+        # do we take the max? average?
+        print(y_i.shape)
         return max(y_i)
 
 
-class IntensiveOutput(nn.Module):
-        """Outputs the results of running the sample through the intensive module, implementing internal front verification and a span predicition
-    Args:
-        hidden_size (int): Hidden size used in the BiDAF model.
-    """
-    def __init__(self, hidden_size):
-        super(IntensiveOutput, self).__init__()
-        self.ifv = FV(hidden_size)
-        #need to make these the size of M_i
-        self.Ws = nn.Parameter(torch.zeros(1, hidden_size * 2))
-        self.We = nn.Parameter(torch.zeros(1, hidden_size * 2))
+# class IntensiveOutput(nn.Module):
+#         """Outputs the results of running the sample through the intensive module, implementing internal front verification and a span predicition
+#     Args:
+#         hidden_size (int): Hidden size used in the BiDAF model.
+#     """
+#     def __init__(self, hidden_size):
+#         super(IntensiveOutput, self).__init__()
+#         self.ifv = FV(hidden_size)
+#         # need to make these the size of M_i
+#         self.Ws = nn.Parameter(torch.zeros(1, hidden_size * 2))
+#         self.We = nn.Parameter(torch.zeros(1, hidden_size * 2))
 
-        self.softmax = nn.Softmax(0)
+#         self.softmax = nn.Softmax(0)
 
-    def forward(self, M_0, M_1, M_2):
-        y_i = self.ifv(M_0, M_1, M_2)
-        s = self.softmax(Ws @ torch.cat(M_0, M_1))
-        e = self.softmax(We @ torch.cat(M_0, M_2)) 
+#     def forward(self, M_0, M_1, M_2):
+#         y_i = self.ifv(M_0, M_1, M_2)
+#         s = self.softmax(Ws @ torch.cat(M_0, M_1))
+#         e = self.softmax(We @ torch.cat(M_0, M_2))
 
-        return y_i, (s, e)
-    
+#         return y_i, (s, e)
+
 class SketchyOutput(nn.Module):
-        """Outputs the results of running the sample throuhg the sketchy reading module, implements external front verification
+    """Outputs the results of running the sample throuhg the sketchy reading module, implements external front verification
     Args:
         hidden_size (int): Hidden size used in the BiDAF model.
     """
+
     def __init__(self, hidden_size):
         super(SketchyOutput, self).__init__()
         self.efv = FV(hidden_size)
 
     def forward(self, M_0, M_1, M_2):
-        y_i = self.efv(M_0, M_1, M_2)       
+        y_i = self.efv(M_0, M_1, M_2)
 
         return y_i
 
+
 class RV_TAV(nn.Module):
     """Rear Verification and Threshold Answer Verification layer utilized as part of Retrospective reader
-    to augment our QANet by combining the answerability determined by our sketchy model and ur intensive 
+    to augment our QANet by combining the answerability determined by our sketchy model and ur intensive
     model either returning a span or no answer at all.
     Args:
         hidden_size (int): Hidden size used in the BiDAF model.
     """
+
     def __init__(self):
         super(RV, self).__init__()
 
-        self.beta = nn.Parameter(torch.zeros(1, 1) + 0.5) #Allows us to train weights for RV
-        self.ans = nn.Parameter(torch.zeros(1, 1) + 0.75) #Allows us to train Threshold for TAV
-     
-    def forward(intensive_prediction, sketchy_prediction, s_pred, e_pred, max_len=15, use_squad_v2=True)
+        # Allows us to train weights for RV
+        self.beta = nn.Parameter(torch.zeros(1, 1) + 0.5)
+        # Allows us to train Threshold for TAV
+        self.ans = nn.Parameter(torch.zeros(1, 1) + 0.75)
+
+    def forward(intensive_prediction, sketchy_prediction, s_pred, e_pred, max_len=15, use_squad_v2=True):
         starts, ends = discretize(s_pred.exp(), e_pred.exp(), max_len, use_squad_v2)
-        answerable = self.beta * intensive_prediction + (1-self.beta) * sketchy_prediction #Combines answerability estimate from both the sketchy and intensive models
+      # Combines answerability estimate from both the sketchy and intensive models
+        answerable = self.beta * intensive_prediction + (1-self.beta) * sketchy_prediction
         if answerable > self.ans and ends[0] != 0:
             s, e = s_pred, e_pred
         else:
             s, e = []
         return s, e
-
-            
-            
-
