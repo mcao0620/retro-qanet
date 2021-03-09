@@ -420,7 +420,7 @@ class FV(nn.Module):
 
 
 class IntensiveOutput(nn.Module):
-        """Outputs the results of running the sample through the intensive module, implementing internal front verification and a span predicition
+    """Outputs the results of running the sample through the intensive module, implementing internal front verification and a span predicition
     Args:
         hidden_size (int): Hidden size used in the BiDAF model.
     """
@@ -435,8 +435,8 @@ class IntensiveOutput(nn.Module):
 
     def forward(self, M_0, M_1, M_2):
         y_i = self.ifv(M_0, M_1, M_2)
-        s = self.softmax(Ws @ torch.cat(M_0, M_1))
-        e = self.softmax(We @ torch.cat(M_0, M_2))
+        s = self.softmax(self.Ws @ torch.cat((M_0, M_1), dim=0))
+        e = self.softmax(self.We @ torch.cat((M_0, M_2), dim=0))
 
         return y_i, (s, e)
 

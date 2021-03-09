@@ -13,6 +13,7 @@ from collections import OrderedDict
 from json import dumps
 from models import BiDAF
 from models import SketchyReader
+from models import IntensiveReader
 from tensorboardX import SummaryWriter
 from tqdm import tqdm
 from ujson import load as json_load
@@ -49,8 +50,11 @@ def main(args):
                               hidden_size=args.hidden_size,
                               drop_prob=args.drop_prob) #SKETCHY
     elif args.model_name == 'intensive':
-        pass
-        #model = #INTENSIVE
+        
+        model = IntensiveReader(word_vectors=word_vectors,
+                                char_vectors=char_vectors,
+                                hidden_size=args.hidden_size,
+                                drop_prob=args.drop_prob) #INTENSIVE
     elif args.model_name == 'retro':
         pass
        # model = #QANET --- Requires that we make a forward pass through both Sketchy and Intensive
@@ -203,7 +207,7 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2):
             if args.model_name == 'sketchy':
                 yi = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
                 loss = bceLoss(yi, torch.where(y1 == -1, 0, 1).type_as(yi))
-                starts, ends = [[y1[x] if (yi[x] > 0.5) else 0 for x in ids)], [y2[x] if (yi[x] > 0.5) else 0 for x in ids)]]
+                starts, ends = [[y1[x] if (yi[x] > 0.5) else 0 for x in ids], [y2[x] if (yi[x] > 0.5) else 0 for x in ids]]
             elif args.model_name == 'intensive':                 
                 yi, log_p1, log_p2 = intensive_model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
                 loss = args.alpha_1 * bceLoss(yi, torch.where(y1 == -1, 0, 1).type_as(yi)) + args.alpha_2 * (ceLoss(log_p1, y1) + ceLoss(log_p2, y2))
