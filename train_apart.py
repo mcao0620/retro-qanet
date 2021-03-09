@@ -220,6 +220,7 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
                     # Get F1 and EM scores
                 p1, p2 = log_p1.exp(), log_p2.exp()
                 starts, ends = util.discretize(p1, p2, max_len, use_squad_v2)
+                starts, ends = starts.tolist(), ends.tolist()
             elif model_name == 'retro':
                 log_p1, log_p2 = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
                 loss = F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2)
@@ -232,8 +233,8 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
 
             preds, _ = util.convert_tokens(gold_dict,
                                            ids.tolist(),
-                                           starts.tolist(),
-                                           ends.tolist(),
+                                           starts,
+                                           ends,
                                            use_squad_v2)
             pred_dict.update(preds)
 
