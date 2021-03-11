@@ -19,7 +19,8 @@ from tqdm import tqdm
 from ujson import load as json_load
 from util import collate_fn, SQuAD
 
-#TO TRAIN YOU MUST ALSO SET --model_name (skecthy or intensive)
+# TO TRAIN YOU MUST ALSO SET --model_name (skecthy or intensive)
+
 
 def main(args):
     # Set up logging and devices
@@ -48,13 +49,13 @@ def main(args):
         model = SketchyReader(word_vectors=word_vectors,
                               char_vectors=char_vectors,
                               hidden_size=args.hidden_size,
-                              drop_prob=args.drop_prob) #SKETCHY
+                              drop_prob=args.drop_prob)  # SKETCHY
     elif args.model_name == 'intensive':
-        
+
         model = IntensiveReader(word_vectors=word_vectors,
                                 char_vectors=char_vectors,
                                 hidden_size=args.hidden_size,
-                                drop_prob=args.drop_prob) #INTENSIVE
+                                drop_prob=args.drop_prob)  # INTENSIVE
     elif args.model_name == 'retro':
         pass
        # model = #QANET --- Requires that we make a forward pass through both Sketchy and Intensive
@@ -69,7 +70,7 @@ def main(args):
     model.train()
     ema = util.EMA(model, args.ema_decay)
 
-    #setup losses
+    # setup losses
     bceLoss = nn.BCEWithLogitsLoss()
     ceLoss = nn.CrossEntropyLoss()
 
@@ -125,22 +126,26 @@ def main(args):
                     yi = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
                     log_p1 = None
                     log_p2 = None
-                    
+
                     loss = bceLoss(yi, torch.where(y1 == -1, 0, 1).type_as(yi))
-                elif args.model_name == 'intensive':                 
-                    yi, log_p1, log_p2 = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
-                    loss = args.alpha_1 * bceLoss(yi, torch.where(y1 == -1, 0, 1).type_as(yi)) + args.alpha_2 * (ceLoss(log_p1, y1) + ceLoss(log_p2, y2))
+                elif args.model_name == 'intensive':
+                    yi, log_p1, log_p2 = model(
+                        cw_idxs, qw_idxs, cc_idxs, qc_idxs)
+                    loss = args.alpha_1 * bceLoss(yi, torch.where(y1 == -1, 0, 1).type_as(
+                        yi)) + args.alpha_2 * (ceLoss(log_p1, y1) + ceLoss(log_p2, y2))
                 elif arg.model_name == 'retro':
                     log_p1, log_p2 = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
                     loss = F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2)
                 else:
-                    raise ValueError('invalid --model_name, sketchy or intensive required')
+                    raise ValueError(
+                        'invalid --model_name, sketchy or intensive required')
 
                 loss_val = loss.item()
 
                 # Backward
                 loss.backward()
-                nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
+                nn.utils.clip_grad_norm_(
+                    model.parameters(), args.max_grad_norm)
                 optimizer.step()
                 scheduler.step(step // batch_size)
                 ema(model, step // batch_size)
@@ -167,11 +172,13 @@ def main(args):
                                                   args.max_ans_len,
                                                   args.use_squad_v2,
                                                   model_name=args.model_name)
-                    saver.save(step, model, results[args.metric_name], device, model_name=args.model_name)
+                    saver.save(
+                        step, model, results[args.metric_name], device, model_name=args.model_name)
                     ema.resume(model)
 
                     # Log to console
-                    results_str = ', '.join(f'{k}: {v:05.2f}' for k, v in results.items())
+                    results_str = ', '.join(
+                        f'{k}: {v:05.2f}' for k, v in results.items())
                     log.info(f'Dev {results_str}')
 
                     # Log to TensorBoard
@@ -189,7 +196,7 @@ def main(args):
 def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model_name=""):
     meter = util.AverageMeter()
 
-    #setup losses
+    # setup losses
     bceLoss = nn.BCEWithLogitsLoss()
     ceLoss = nn.CrossEntropyLoss()
 
@@ -211,11 +218,14 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
             if model_name == 'sketchy':
                 yi = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
                 loss = bceLoss(yi, torch.where(y1 == -1, 0, 1).type_as(yi))
-                starts, ends = [[y1[x] if (yi[idx] > 0.25) else 0 for idx, x in enumerate(ids)], [y2[x] if (yi[idx] > 0.25) else 0 for idx, x in enumerate(ids)]]
-            elif model_name == 'intensive':                 
-                yi, log_p1, log_p2 = intensive_model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
-                loss = args.alpha_1 * bceLoss(yi, torch.where(y1 == -1, 0, 1).type_as(yi)) + args.alpha_2 * (ceLoss(log_p1, y1) + ceLoss(log_p2, y2))
-                    # Get F1 and EM scores
+                starts, ends = [[y1[x] if (yi[idx] > 0.25) else 0 for idx, x in enumerate(ids)], [
+                    y2[x] if (yi[idx] > 0.25) else 0 for idx, x in enumerate(ids)]]
+            elif model_name == 'intensive':
+                yi, log_p1, log_p2 = intensive_model(
+                    cw_idxs, qw_idxs, cc_idxs, qc_idxs)
+                loss = args.alpha_1 * bceLoss(yi, torch.where(y1 == -1, 0, 1).type_as(
+                    yi)) + args.alpha_2 * (ceLoss(log_p1, y1) + ceLoss(log_p2, y2))
+                # Get F1 and EM scores
                 p1, p2 = log_p1.exp(), log_p2.exp()
                 starts, ends = util.discretize(p1, p2, max_len, use_squad_v2)
                 starts, ends = starts.tolist(), ends.tolist()
@@ -223,7 +233,8 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
                 log_p1, log_p2 = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
                 loss = F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2)
             else:
-                raise ValueError('invalid --model_name, sketchy or intensive required')
+                raise ValueError(
+                    'invalid --model_name, sketchy or intensive required')
             meter.update(loss.item(), batch_size)
             # Log info
             progress_bar.update(batch_size)

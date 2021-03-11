@@ -346,11 +346,11 @@ class EmbeddingResizer(nn.Module):
             in_channels, out_channels,
             kernel_size, stride=stride,
             padding=padding, groups=groups, bias=bias)
-        # nn.init.kaiming_normal_(self.out.weight, nonlinearity='relu')
+        nn.init.xavier_uniform_(self.out.weight)
 
     def forward(self, x):
         x = torch.transpose(x, 1, 2)
-        return torch.transpose(F.relu(self.out(x)), 1, 2)
+        return torch.transpose(self.out(x), 1, 2)
 
 
 class StackedEncoder(nn.Module):
@@ -424,6 +424,7 @@ class IntensiveOutput(nn.Module):
     Args:
         hidden_size (int): Hidden size used in the BiDAF model.
     """
+
     def __init__(self, hidden_size):
         super(IntensiveOutput, self).__init__()
         self.ifv = FV(hidden_size)
@@ -439,6 +440,7 @@ class IntensiveOutput(nn.Module):
         e = self.softmax(self.We @ torch.cat((M_0, M_2), dim=0))
 
         return y_i, (s, e)
+
 
 class SketchyOutput(nn.Module):
     """Outputs the results of running the sample throuhg the sketchy reading module, implements external front verification
@@ -473,9 +475,11 @@ class RV_TAV(nn.Module):
         self.ans = nn.Parameter(torch.zeros(1, 1) + 0.75)
 
     def forward(intensive_prediction, sketchy_prediction, s_pred, e_pred, max_len=15, use_squad_v2=True):
-        starts, ends = discretize(s_pred.exp(), e_pred.exp(), max_len, use_squad_v2)
+        starts, ends = discretize(
+            s_pred.exp(), e_pred.exp(), max_len, use_squad_v2)
       # Combines answerability estimate from both the sketchy and intensive models
-        answerable = self.beta * intensive_prediction + (1-self.beta) * sketchy_prediction
+        answerable = self.beta * intensive_prediction + \
+            (1-self.beta) * sketchy_prediction
         if answerable > self.ans and ends[0] != 0:
             s, e = s_pred, e_pred
         else:
