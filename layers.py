@@ -399,7 +399,7 @@ class FV(nn.Module):
         # verify sizes <<<<<<<<
         self.verify_linear = nn.Linear(hidden_size, 1)
 
-        self.softmax = nn.Softmax(0)
+        self.softmax = nn.Softmax(1)
 
     def forward(self, M_0, M_1, M_2):
         # relu each M_i
@@ -411,9 +411,10 @@ class FV(nn.Module):
         # run 1d max pool to get M_x
         # M_x = self.maxpool(m_2)
         # print(M_x.shape)
-        sq1 = torch.max(m_2, dim=1)[0]
+        M_X = self.verify_linear(m_2)
+        sq1 = self.softmax(M_X)
         # y_i = SOFTMAX(LINEAR(M_x)) to produce logits
-        y_i = self.softmax(self.verify_linear(sq1))
+        y_i = torch.max(sq1, dim=1)[0]
 
         # do we take the max? average?
         return torch.flatten(y_i)

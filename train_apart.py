@@ -126,7 +126,7 @@ def main(args):
                     yi = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
                     log_p1 = None
                     log_p2 = None
-
+                    print(yi, y1)
                     loss = bceLoss(yi, torch.where(y1 == -1, 0, 1).type_as(yi))
                 elif args.model_name == 'intensive':
                     yi, log_p1, log_p2 = model(
