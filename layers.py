@@ -403,7 +403,7 @@ class FV(nn.Module):
         #produce logits
         sq1 = masked_sigmoid(torch.squeeze(M_X), mask, log_sigmoid=True)
 
-        y_i = sq1[:,0]
+        y_i = torch.squeeze(sq1[:,0])
 
         return y_i
 
