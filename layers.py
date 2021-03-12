@@ -393,22 +393,18 @@ class FV(nn.Module):
 
     def __init__(self, hidden_size):
         super(FV, self).__init__()
-        self.relu = nn.ReLU()
 
-        self.verify_linear = nn.Linear(hidden_size, 1)
+        self.verify_linear = nn.Linear(hidden_size * 3, 1)
 
-    def forward(self, M_2, mask):
-        # relu each M
-        m_2 = self.relu(M_2)
+    def forward(self, M_1, M_2, M_3, mask):
         #linear layer
-        M_X = self.verify_linear(m_2)
+        M_X = self.verify_linear(torch.cat((M_1, M_2, M_3), dim=-1))
         #produce logits
+        sq1 = masked_sigmoid(torch.squeeze(M_X), mask, dim=1, log_softmax=True)
 
-        sq1 = masked_softmax(torch.squeeze(M_X), mask, dim=1, log_softmax=True)
+        y_i = sq1[:,0]
 
-        y_i = torch.max(sq1, dim=1)[0]
-
-        return torch.flatten(y_i)
+        return y_i
 
 
 class IntensiveOutput(nn.Module):
@@ -427,7 +423,7 @@ class IntensiveOutput(nn.Module):
         self.softmax = nn.Softmax(0)
 
     def forward(self, M_0, M_1, M_2, mask):
-        y_i = self.ifv(M_2, mask)
+        y_i = self.ifv(M_0, M_1, M_2, mask)
         s = masked_softmax(torch.squeeze(torch.cat((M_0, M_1), dim=-1) @ self.Ws), mask,  dim=1, log_softmax=True)
         e = masked_softmax(torch.squeeze(torch.cat((M_0, M_2), dim=-1) @ self.We), mask, dim=1, log_softmax=True)
 
@@ -445,7 +441,7 @@ class SketchyOutput(nn.Module):
         self.efv = FV(hidden_size)
 
     def forward(self, M_2, mask):
-        y_i = self.efv(M_2, mask)
+        y_i = self.efv(M_0, M_1, M_2, mask)
 
         return y_i
 

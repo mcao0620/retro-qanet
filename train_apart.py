@@ -75,7 +75,7 @@ def main(args):
     ema = util.EMA(model, args.ema_decay)
 
     # setup losses
-    bceLoss = nn.BCEWithLogitsLoss()
+    bceLoss = nn.BCELoss()
 
     # Get saver
     saver = util.CheckpointSaver(args.save_dir,
@@ -202,7 +202,7 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
     meter = util.AverageMeter()
 
     # setup losses
-    bceLoss = nn.BCEWithLogitsLoss()
+    bceLoss = nn.BCELoss()
     ceLoss = nn.CrossEntropyLoss()
 
     model.eval()
