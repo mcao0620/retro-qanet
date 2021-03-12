@@ -402,9 +402,9 @@ class FV(nn.Module):
         M_X = self.verify_linear(torch.cat((M_1, M_2, M_3), dim=-1))
         #produce logits
         sq1 = masked_sigmoid(torch.squeeze(M_X), mask, log_sigmoid=True)
-
+    
         y_i = torch.squeeze(sq1[:,0])
-
+        print(y_i)
         return y_i
 
 
