@@ -404,7 +404,7 @@ class FV(nn.Module):
         sq1 = masked_sigmoid(torch.squeeze(M_X), mask, log_sigmoid=False)
     
         y_i = torch.squeeze(sq1[:,0])
-        print(y_i)
+        
         return y_i
 
 
