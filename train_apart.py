@@ -174,7 +174,9 @@ def main(args):
                                                   args.dev_eval_file,
                                                   args.max_ans_len,
                                                   args.use_squad_v2,
-                                                  model_name=args.model_name)
+                                                  model_name=args.model_name, 
+                                                  a1=args.alpha_1, 
+                                                  a2=args.alpha_2)
                     saver.save(
                         step, model, results[args.metric_name], device, model_name=args.model_name)
                     ema.resume(model)
@@ -196,7 +198,7 @@ def main(args):
                                    num_visuals=args.num_visuals)
 
 
-def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model_name=""):
+def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model_name="", a1=0.1, a2=0.9):
     meter = util.AverageMeter()
 
     # setup losses
@@ -226,8 +228,8 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
             elif model_name == 'intensive':
                 yi, (log_p1, log_p2) = model(
                     cw_idxs, qw_idxs, cc_idxs, qc_idxs)
-                loss = args.alpha_1 * bceLoss(yi, torch.where(y1 == -1, 0, 1).type_as(
-                    yi)) + args.alpha_2 * (F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2))
+                loss = a1 * bceLoss(yi, torch.where(y1 == -1, 0, 1).type_as(
+                    yi)) + a2 * (F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2))
                 # Get F1 and EM scores
                 p1, p2 = log_p1.exp(), log_p2.exp()
                 starts, ends = util.discretize(p1, p2, max_len, use_squad_v2)
