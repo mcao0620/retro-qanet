@@ -19,6 +19,10 @@ from tqdm import tqdm
 from ujson import load as json_load
 from util import collate_fn, SQuAD
 
+import os
+
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
+
 # TO TRAIN YOU MUST ALSO SET --model_name (skecthy or intensive)
 
 
@@ -91,14 +95,14 @@ def main(args):
     train_loader = data.DataLoader(train_dataset,
                                    batch_size=args.batch_size,
                                    shuffle=True,
-                                   num_workers=args.num_workers,
+                                   num_workers=0,
                                    collate_fn=collate_fn)
 
     dev_dataset = SQuAD(args.dev_record_file, args.use_squad_v2)
     dev_loader = data.DataLoader(dev_dataset,
                                  batch_size=args.batch_size,
                                  shuffle=False,
-                                 num_workers=args.num_workers,
+                                 num_workers=0,
                                  collate_fn=collate_fn)
 
     # Train
@@ -126,7 +130,7 @@ def main(args):
                     log_p1 = None
                     log_p2 = None
                     #print(yi, y1)
-                    loss = F.nll_loss(yi, torch.where(y1 == -1, 0, 1).type_as(yi))
+                    loss = bceLoss(yi, torch.where(y1 == -1, 0, 1).type_as(yi))
                 elif args.model_name == 'intensive':
                     yi, log_p1, log_p2 = model(
                         cw_idxs, qw_idxs, cc_idxs, qc_idxs)
@@ -216,7 +220,7 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
             y1, y2 = y1.to(device), y2.to(device)
             if model_name == 'sketchy':
                 yi = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
-                loss = F.nll_loss(yi, torch.where(y1 == -1, 0, 1).type_as(yi))
+                loss = bceLoss(yi, torch.where(y1 == -1, 0, 1).type_as(yi))
                 starts, ends = [[y1[x] if (yi[idx] > 0.25) else 0 for idx, x in enumerate(ids)], [
                     y2[x] if (yi[idx] > 0.25) else 0 for idx, x in enumerate(ids)]]
             elif model_name == 'intensive':

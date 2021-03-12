@@ -403,7 +403,8 @@ class FV(nn.Module):
         #linear layer
         M_X = self.verify_linear(m_2)
         #produce logits
-        sq1 = masked_softmax(M_X, mask, dim=1, log_softmax=True)
+
+        sq1 = masked_softmax(torch.squeeze(M_X), mask, dim=1, log_softmax=True)
 
         y_i = torch.max(sq1, dim=1)[0]
 
