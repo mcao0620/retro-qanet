@@ -395,28 +395,18 @@ class FV(nn.Module):
         super(FV, self).__init__()
         self.relu = nn.ReLU()
 
-        self.maxpool = nn.MaxPool1d(hidden_size)
-        # verify sizes <<<<<<<<
         self.verify_linear = nn.Linear(hidden_size, 1)
 
-        self.softmax = nn.Softmax(1)
-
-    def forward(self, M_0, M_1, M_2):
-        # relu each M_i
-        m_0 = self.relu(M_0)
-        m_1 = self.relu(M_1)
+    def forward(self, M_2, mask):
+        # relu each M
         m_2 = self.relu(M_2)
-        # concatenate the results
-        # z = torch.cat((m_0, m_1, m_2), dim=0)
-        # run 1d max pool to get M_x
-        # M_x = self.maxpool(m_2)
-        # print(M_x.shape)
+        #linear layer
         M_X = self.verify_linear(m_2)
-        sq1 = self.softmax(M_X)
-        # y_i = SOFTMAX(LINEAR(M_x)) to produce logits
+        #produce logits
+        sq1 = masked_softmax(M_X, mask, dim=1, log_softmax=True)
+
         y_i = torch.max(sq1, dim=1)[0]
 
-        # do we take the max? average?
         return torch.flatten(y_i)
 
 
@@ -430,15 +420,15 @@ class IntensiveOutput(nn.Module):
         super(IntensiveOutput, self).__init__()
         self.ifv = FV(hidden_size)
         # need to make these the size of M_i
-        self.Ws = nn.Parameter(torch.zeros(hidden_size, 1))
-        self.We = nn.Parameter(torch.zeros(hidden_size, 1))
+        self.Ws = nn.Parameter(torch.zeros(hidden_size * 2, 1))
+        self.We = nn.Parameter(torch.zeros(hidden_size * 2, 1))
 
         self.softmax = nn.Softmax(0)
 
-    def forward(self, M_0, M_1, M_2):
-        y_i = self.ifv(M_0, M_1, M_2)
-        s = self.softmax(self.Ws @ torch.cat((M_0, M_1), dim=0))
-        e = self.softmax(self.We @ torch.cat((M_0, M_2), dim=0))
+    def forward(self, M_0, M_1, M_2, mask):
+        y_i = self.ifv(M_2, mask)
+        s = masked_softmax(torch.cat((M_0, M_1), dim=-1) @ self.Ws, mask,  dim=1, log_softmax=True)
+        e = masked_softmax(torch.cat((M_0, M_2), dim=-1) @ self.We, mask, dim=1, log_softmax=True)
 
         return y_i, (s, e)
 
@@ -453,8 +443,8 @@ class SketchyOutput(nn.Module):
         super(SketchyOutput, self).__init__()
         self.efv = FV(hidden_size)
 
-    def forward(self, M_0, M_1, M_2):
-        y_i = self.efv(M_0, M_1, M_2)
+    def forward(self, M_2, mask):
+        y_i = self.efv(M_2, mask)
 
         return y_i
 

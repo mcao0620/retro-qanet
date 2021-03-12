@@ -138,7 +138,7 @@ class SketchyReader(nn.Module):
         mod2 = self.mod2(mod1)        # (batch_size, c_len, 2 * hidden_size)
         mod3 = self.mod3(mod2)        # (batch_size, c_len, 2 * hidden_size)
 
-        out = self.out(mod1, mod2, mod3)
+        out = self.out(mod3, c_mask)
 
         return out
 
