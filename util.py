@@ -385,7 +385,7 @@ def masked_softmax(logits, mask, dim=-1, log_softmax=False):
 
     return probs
 
-def masked_sigmoid(logits, mask, dim=-1, log_sigmoid=False):
+def masked_sigmoid(logits, mask, log_sigmoid=False):
     """Take the softmax of `logits` over given dimension, and set
     entries to 0 wherever `mask` is 0.
 
@@ -403,7 +403,7 @@ def masked_sigmoid(logits, mask, dim=-1, log_sigmoid=False):
     mask = mask.type(torch.float32)
     masked_logits = mask * logits + (1 - mask) * -1e30
     sigmoid_fn = F.logsigmoid if log_sigmoid else F.sigmmoid
-    probs = sigmoid_fn(masked_logits, dim)
+    probs = sigmoid_fn(masked_logits)
 
     return probs
 

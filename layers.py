@@ -401,7 +401,7 @@ class FV(nn.Module):
         #linear layer
         M_X = self.verify_linear(torch.cat((M_1, M_2, M_3), dim=-1))
         #produce logits
-        sq1 = masked_sigmoid(torch.squeeze(M_X), mask, dim=1, log_sigmoid=True)
+        sq1 = masked_sigmoid(torch.squeeze(M_X), mask, log_sigmoid=True)
 
         y_i = sq1[:,0]
 
@@ -425,8 +425,8 @@ class IntensiveOutput(nn.Module):
 
     def forward(self, M_1, M_2, M_3, mask):
         y_i = self.ifv(M_1, M_2, M_3, mask)
-        s = masked_softmax(torch.squeeze(torch.cat((M_0, M_1), dim=-1) @ self.Ws), mask,  dim=1, log_softmax=True)
-        e = masked_softmax(torch.squeeze(torch.cat((M_0, M_2), dim=-1) @ self.We), mask, dim=1, log_softmax=True)
+        s = masked_softmax(torch.squeeze(torch.cat((M_1, M_2), dim=-1) @ self.Ws), mask,  dim=1, log_softmax=True)
+        e = masked_softmax(torch.squeeze(torch.cat((M_1, M_3), dim=-1) @ self.We), mask, dim=1, log_softmax=True)
 
         return y_i, (s, e)
 
