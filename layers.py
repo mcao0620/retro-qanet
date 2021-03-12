@@ -11,6 +11,7 @@ import torch.nn.functional as F
 
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from util import masked_softmax
+from util import masked_sigmoid
 from util import discretize
 
 
@@ -422,8 +423,8 @@ class IntensiveOutput(nn.Module):
 
         self.softmax = nn.Softmax(0)
 
-    def forward(self, M_0, M_1, M_2, mask):
-        y_i = self.ifv(M_0, M_1, M_2, mask)
+    def forward(self, M_1, M_2, M_3, mask):
+        y_i = self.ifv(M_1, M_2, M_3, mask)
         s = masked_softmax(torch.squeeze(torch.cat((M_0, M_1), dim=-1) @ self.Ws), mask,  dim=1, log_softmax=True)
         e = masked_softmax(torch.squeeze(torch.cat((M_0, M_2), dim=-1) @ self.We), mask, dim=1, log_softmax=True)
 
@@ -440,8 +441,8 @@ class SketchyOutput(nn.Module):
         super(SketchyOutput, self).__init__()
         self.efv = FV(hidden_size)
 
-    def forward(self, M_2, mask):
-        y_i = self.efv(M_0, M_1, M_2, mask)
+    def forward(self, M_1, M_2, M_3, mask):
+        y_i = self.efv(M_1, M_2, M_3, mask)
 
         return y_i
 

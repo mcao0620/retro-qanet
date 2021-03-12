@@ -385,7 +385,7 @@ def masked_softmax(logits, mask, dim=-1, log_softmax=False):
 
     return probs
 
-def masked_sigmoid(logits, mask, dim=-1, log_softmax=False):
+def masked_sigmoid(logits, mask, dim=-1, log_sigmoid=False):
     """Take the softmax of `logits` over given dimension, and set
     entries to 0 wherever `mask` is 0.
 
