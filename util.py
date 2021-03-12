@@ -402,7 +402,7 @@ def masked_sigmoid(logits, mask, log_sigmoid=False):
     """
     mask = mask.type(torch.float32)
     masked_logits = mask * logits + (1 - mask) * -1e30
-    sigmoid_fn = F.logsigmoid if log_sigmoid else F.sigmmoid
+    sigmoid_fn = F.logsigmoid if log_sigmoid else F.sigmoid
     probs = sigmoid_fn(masked_logits)
 
     return probs
