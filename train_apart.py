@@ -219,8 +219,8 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
             if model_name == 'sketchy':
                 yi = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
                 loss = bceLoss(yi, torch.where(y1 == -1, 0, 1).type_as(yi))
-                starts, ends = [[y1[x] if (yi[idx] > 0.25) else 0 for idx, x in enumerate(ids)], [
-                    y2[x] if (yi[idx] > 0.25) else 0 for idx, x in enumerate(ids)]]
+                starts, ends = [[y1[idx] if (yi[idx] > 0.25) else 0 for idx, x in enumerate(ids)], [
+                    y2[idx] if (yi[idx] > 0.25) else 0 for idx, x in enumerate(ids)]]
             elif model_name == 'intensive':
                 yi, (log_p1, log_p2) = model(
                     cw_idxs, qw_idxs, cc_idxs, qc_idxs)
