@@ -19,10 +19,6 @@ from tqdm import tqdm
 from ujson import load as json_load
 from util import collate_fn, SQuAD
 
-import os
-
-os.environ['KMP_DUPLICATE_LIB_OK']='True'
-
 # TO TRAIN YOU MUST ALSO SET --model_name (skecthy or intensive)
 
 
@@ -95,14 +91,14 @@ def main(args):
     train_loader = data.DataLoader(train_dataset,
                                    batch_size=args.batch_size,
                                    shuffle=True,
-                                   num_workers=0,
+                                   num_workers=args.num_workers,
                                    collate_fn=collate_fn)
 
     dev_dataset = SQuAD(args.dev_record_file, args.use_squad_v2)
     dev_loader = data.DataLoader(dev_dataset,
                                  batch_size=args.batch_size,
                                  shuffle=False,
-                                 num_workers=0,
+                                 num_workers=args.num_workers,
                                  collate_fn=collate_fn)
 
     # Train
