@@ -470,6 +470,7 @@ class RV_TAV(nn.Module):
         starts, ends = discretize(
             s_in, e_in, max_len, use_squad_v2)
         # Combines answerability estimate from both the sketchy and intensive models
+        print(intensive_prediction, sketchy_prediction) 
         pred_answerable = self.beta * intensive_prediction + \
             (1-self.beta) * sketchy_prediction
         # Calcultes how certain we are of intesives prediction
