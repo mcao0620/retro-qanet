@@ -464,7 +464,7 @@ class RV_TAV(nn.Module):
         self.ans = nn.Parameter(torch.zeros(1) + 0.75)
 
     def forward(sketchy_prediction, intensive_prediction, s_pred, e_pred, max_len=15, use_squad_v2=True):
-        s_in, e_in = s_pred.exp, e_pred.exp()
+        s_in, e_in = s_pred.exp(), e_pred.exp()
         starts, ends = discretize(
             s_in, e_in, max_len, use_squad_v2)
         # Combines answerability estimate from both the sketchy and intensive models
