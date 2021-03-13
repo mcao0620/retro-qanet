@@ -132,6 +132,7 @@ def main(args):
                 if args.model_name == 'sketchy':
                     yi = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
                     print(yi)
+                    print(y1)
                     log_p1 = None
                     log_p2 = None
                     #print(yi, y1)
