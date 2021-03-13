@@ -131,16 +131,13 @@ def main(args):
                 y1, y2 = y1.to(device), y2.to(device)
                 if args.model_name == 'sketchy':
                     yi = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
-                    print(yi)
-                    print(y1)
                     log_p1 = None
                     log_p2 = None
-                    #print(yi, y1)
-                    loss = bceLoss(yi, torch.where(y1 == -1, 0, 1).type_as(yi))
+                    loss = bceLoss(yi, torch.where(y1 == 0, 0, 1).type_as(yi))
                 elif args.model_name == 'intensive':
                     yi, log_p1, log_p2 = model(
                         cw_idxs, qw_idxs, cc_idxs, qc_idxs)
-                    loss = args.alpha_1 * bceLoss(yi, torch.where(y1 == -1, 0, 1).type_as(
+                    loss = args.alpha_1 * bceLoss(yi, torch.where(y1 == 0, 0, 1).type_as(
                         yi)) + args.alpha_2 * (F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2))
                 elif args.model_name == 'retro':
                     log_p1, log_p2 = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
@@ -228,13 +225,13 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
             y1, y2 = y1.to(device), y2.to(device)
             if model_name == 'sketchy':
                 yi = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
-                loss = bceLoss(yi, torch.where(y1 == -1, 0, 1).type_as(yi))
+                loss = bceLoss(yi, torch.where(y1 == 0, 0, 1).type_as(yi))
                 starts, ends = [[y1[idx] if (yi[idx] > 0.25) else 0 for idx, x in enumerate(ids)], [
                     y2[idx] if (yi[idx] > 0.25) else 0 for idx, x in enumerate(ids)]]
             elif model_name == 'intensive':
                 yi, log_p1, log_p2 = model(
                     cw_idxs, qw_idxs, cc_idxs, qc_idxs)
-                loss = a1 * bceLoss(yi, torch.where(y1 == -1, 0, 1).type_as(
+                loss = a1 * bceLoss(yi, torch.where(y1 == 0, 0, 1).type_as(
                     yi)) + a2 * (F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2))
                 # Get F1 and EM scores
                 p1, p2 = log_p1.exp(), log_p2.exp()
