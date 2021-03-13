@@ -249,7 +249,7 @@ class RetroQANet(nn.Module):
 
         yi_s = self.sketchy(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
         yi_i, (s_pred, e_pred) = self.intensive(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
-        out = self.RV_TAV(yi_s, yi_i, s_pred, e_pred)
+        out = self.RV_TAV(sketchy_prediction=yi_s, intensive_prediction=yi_i, s_pred=s_pred, e_pred=e_pred)
 
         return out
 

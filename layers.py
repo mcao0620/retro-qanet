@@ -430,7 +430,6 @@ class IntensiveOutput(nn.Module):
 
         log_p1 = masked_softmax(logits_1, mask, dim=-1, log_softmax=True)
         log_p2 = masked_softmax(logits_2, mask, dim=-1, log_softmax=True)
-        print(log_p2.shape, log_p1.shape)
         return y_i, (log_p1, log_p2)
 
 
@@ -467,10 +466,9 @@ class RV_TAV(nn.Module):
         self.ans = nn.Parameter(torch.zeros(1) + 0.75)
 
     def forward(sketchy_prediction, intensive_prediction, s_pred, e_pred, max_len=15, use_squad_v2=True):
-        s_in, e_in = s_pred.exp(), e_pred.exp()
-        print(s_pred.shape, e_pred.shape, s_in.shape, e_in.shape)
+        print(s_pred, e_pred)
         starts, ends = discretize(
-            s_in, e_in, max_len, use_squad_v2)
+            s_pred.exp(), e_pred.exp(), max_len, use_squad_v2)
         # Combines answerability estimate from both the sketchy and intensive models
         pred_answerable = self.beta * intensive_prediction + \
             (1-self.beta) * sketchy_prediction
