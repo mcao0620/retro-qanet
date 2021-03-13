@@ -453,8 +453,6 @@ class RV_TAV(nn.Module):
     """Rear Verification and Threshold Answer Verification layer utilized as part of Retrospective reader
     to augment our QANet by combining the answerability determined by our sketchy model and ur intensive
     model either returning a span or no answer at all.
-    Args:
-        hidden_size (int): Hidden size used in the BiDAF model.
     """
 
     def __init__(self):
@@ -466,7 +464,7 @@ class RV_TAV(nn.Module):
         self.ans = nn.Parameter(torch.zeros(1) + 0.75)
 
     def forward(sketchy_prediction, intensive_prediction, log_p1, log_p2, max_len=15, use_squad_v2=True):
-        print(log_p1, log_p2)
+        print(sketchy_prediction, intensive_prediction, log_p1, log_p2)
         starts, ends = discretize(
             log_p1.exp(), log_p2.exp(), max_len, use_squad_v2)
         # Combines answerability estimate from both the sketchy and intensive models
