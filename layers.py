@@ -477,7 +477,7 @@ class RV_TAV(nn.Module):
         null = s_pred[:, 0] * e_pred[:, 0]
         span_answerable = null - has
         # Combines our answerability with our certainty
-        answerable = pred_answerable + span_answerable 
+        answerable = pred_answerable #+ span_answerable 
         s = s_pred[answerable > ans] = 0
         e = e_pred[answerable > ans] = 0
         return s, e
