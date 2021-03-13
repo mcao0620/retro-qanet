@@ -136,7 +136,7 @@ def main(args):
                     #print(yi, y1)
                     loss = bceLoss(yi, torch.where(y1 == -1, 0, 1).type_as(yi))
                 elif args.model_name == 'intensive':
-                    yi, (log_p1, log_p2) = model(
+                    yi, log_p1, log_p2 = model(
                         cw_idxs, qw_idxs, cc_idxs, qc_idxs)
                     loss = args.alpha_1 * bceLoss(yi, torch.where(y1 == -1, 0, 1).type_as(
                         yi)) + args.alpha_2 * (F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2))
@@ -230,7 +230,7 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
                 starts, ends = [[y1[idx] if (yi[idx] > 0.25) else 0 for idx, x in enumerate(ids)], [
                     y2[idx] if (yi[idx] > 0.25) else 0 for idx, x in enumerate(ids)]]
             elif model_name == 'intensive':
-                yi, (log_p1, log_p2) = model(
+                yi, log_p1, log_p2 = model(
                     cw_idxs, qw_idxs, cc_idxs, qc_idxs)
                 loss = a1 * bceLoss(yi, torch.where(y1 == -1, 0, 1).type_as(
                     yi)) + a2 * (F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2))

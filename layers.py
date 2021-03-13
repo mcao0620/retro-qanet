@@ -430,8 +430,7 @@ class IntensiveOutput(nn.Module):
 
         log_p1 = masked_softmax(logits_1, mask, dim=-1, log_softmax=True)
         log_p2 = masked_softmax(logits_2, mask, dim=-1, log_softmax=True)
-        print(log_p1, log_p2)
-        return y_i, (log_p1, log_p2)
+        return y_i, log_p1, log_p2
 
 
 class SketchyOutput(nn.Module):
