@@ -401,7 +401,9 @@ class FV(nn.Module):
         #linear layer
         M_X = self.verify_linear(torch.cat((M_1, M_2, M_3), dim=-1))
         #produce logits
-        sq1 = masked_softmax(torch.squeeze(M_X), mask, dim=-1, log_softmax=True)
+        print(M_X)
+        sq1 = masked_sigmoid(torch.squeeze(M_X), mask, log_sigmoid=True)
+        print(sq1)
     
         y_i = torch.squeeze(sq1[:,0])
 
