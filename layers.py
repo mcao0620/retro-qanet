@@ -478,7 +478,7 @@ class RV_TAV(nn.Module):
         span_answerable = null - has
         # Combines our answerability with our certainty
         print(pred_answerable, span_answerable)
-        answerable = self.lam * pred_answerable + (1 - self.lam)span_answerable 
+        answerable = self.lam * pred_answerable + (1 - self.lam) * span_answerable 
         l_p1 = log_p1.clone()
         l_p2 = log_p2.clone()
         l_p1[answerable < self.ans] = 0
