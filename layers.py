@@ -461,7 +461,7 @@ class RV_TAV(nn.Module):
         # Allows us to train weights for RV
         self.beta = nn.Parameter(torch.zeros(1) + 0.5)
         # Allows us to train Threshold for TAV
-        self.ans = nn.Parameter(torch.zeros(1) + 0.9)
+        self.ans = nn.Parameter(torch.ones(1))
 
     def forward(self, sketchy_prediction, intensive_prediction, log_p1, log_p2, max_len=15, use_squad_v2=True):
         s_in = log_p1.exp()
@@ -477,7 +477,6 @@ class RV_TAV(nn.Module):
         span_answerable = null - has
         # Combines our answerability with our certainty
         answerable = pred_answerable + span_answerable 
-        print(answerable)
         l_p1 = log_p1.clone()
         l_p2 = log_p2.clone()
         l_p1[answerable < self.ans] = 0
