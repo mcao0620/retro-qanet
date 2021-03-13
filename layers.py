@@ -465,20 +465,20 @@ class RV_TAV(nn.Module):
         # Allows us to train Threshold for TAV
         self.ans = nn.Parameter(torch.zeros(1) + 0.75)
 
-    def forward(sketchy_prediction, intensive_prediction, s_pred, e_pred, max_len=15, use_squad_v2=True):
-        print(s_pred, e_pred)
+    def forward(sketchy_prediction, intensive_prediction, log_p1, log_p2, max_len=15, use_squad_v2=True):
+        print(log_p1, log_p2)
         starts, ends = discretize(
-            s_pred.exp(), e_pred.exp(), max_len, use_squad_v2)
+            log_p1.exp(), log_p2.exp(), max_len, use_squad_v2)
         # Combines answerability estimate from both the sketchy and intensive models
         pred_answerable = self.beta * intensive_prediction + \
             (1-self.beta) * sketchy_prediction
         # Calcultes how certain we are of intesives prediction
-        has = torch.tensor([s_pred[x, starts[x]] * e_pred[x, ends[x]] for x in range(s_pred.shape(0))])
-        null = s_pred[:, 0] * e_pred[:, 0]
+        has = torch.tensor([log_p1[x, starts[x]] * log_p2[x, ends[x]] for x in range(log_p1.shape(0))])
+        null = log_p1[:, 0] * log_p2[:, 0]
         span_answerable = null - has
         # Combines our answerability with our certainty
-        answerable = pred_answerable #+ span_answerable 
-        s = s_pred[answerable > ans] = 0
-        e = e_pred[answerable > ans] = 0
+        answerable = pred_answerable + span_answerable 
+        s = log_p1[answerable > ans] = 0
+        e = log_p2[answerable > ans] = 0
         return s, e
         
