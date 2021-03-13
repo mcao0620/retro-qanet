@@ -7,7 +7,7 @@ Author:
 import layers
 import torch
 import torch.nn as nn
-
+import util
 
 class BiDAF(nn.Module):
     """Baseline BiDAF model for SQuAD.
@@ -222,44 +222,37 @@ class RetroQANet(nn.Module):
     
     """
 
-    def __init__(self, word_vectors, char_vectors, hidden_size, drop_prob=0.):
+    def __init__(self, word_vectors, char_vectors, hidden_size, intensive_path, sketchy_path, gpu_ids, drop_prob=0.):
         super(RetroQANet, self).__init__()
 
-        self.emb = layers.Embedding(word_vectors=word_vectors,
-                                    char_vectors=char_vectors,
-                                    hidden_size=hidden_size,
-                                    drop_prob=drop_prob)
+        self.sketchy = SketchyReader(word_vectors=word_vectors,
+                              char_vectors=char_vectors,
+                              hidden_size=hidden_size,
+                              drop_prob=drop_prob)
 
-        hidden_size *= 2    # update hidden size for other layers due to char embeddings
+        self.sketchy, _ = util.load_model(self.sketchy, sketchy_path, gpu_ids)
 
-        self.enc = None     # embedding encoder layer
+        self.intensive = IntensiveReader(word_vectors=word_vectors,
+                                char_vectors=char_vectors,
+                                hidden_size=hidden_size,
+                                drop_prob=drop_prob)
+        
+        self.intensive, _ = util.load_model(self.intensive, intensive_path, gpu_ids)
 
-        self.att = None     # context-query attention layer
-
-        self.mod = None     # model layer
-
-        self.efv = None     # external front verifier
-
-        self.ifv = None     # internal front verifier
-
-        self.out = None     # output layer
+        self.RV_TAV = layers.RV_TAV()
     
+                            
+        
     def forward(self, cw_idxs, qw_idxs, cc_idxs, qc_idxs):
-        c_mask = torch.zeros_like(cw_idxs) != cw_idxs
-        q_mask = torch.zeros_like(qw_idxs) != qw_idxs
-        c_len, q_len = c_mask.sum(-1), q_mask.sum(-1)
+        self.sketchy.eval()
+        self.intensive.eval()
 
-        c_emb = self.emb(cw_idxs, cc_idxs)         # (batch_size, c_len, hidden_size)
-        q_emb = self.emb(qw_idxs, qc_idxs)         # (batch_size, q_len, hidden_size)
+        yi_s = self.sketchy(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
+        yi_i, (s_pred, e_pred) = self.intensive(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
+        
+        out = self.RV_TAV(yi_s, yi_i, s_pred, e_pred)
 
-
-        c_enc = self.enc(c_emb, c_len)    # (batch_size, c_len, 2 * hidden_size)
-        q_enc = self.enc(q_emb, q_len)    # (batch_size, q_len, 2 * hidden_size)
-
-        att = self.att(c_enc, q_enc,
-                       c_mask, q_mask)    # (batch_size, c_len, 8 * hidden_size)
-
-        mod = self.mod(att, c_len)        # (batch_size, c_len, 2 * hidden_size)
+        return out
 
 
 

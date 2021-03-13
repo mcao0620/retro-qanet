@@ -57,8 +57,15 @@ def main(args):
                                 hidden_size=args.hidden_size,
                                 drop_prob=args.drop_prob)  # INTENSIVE
     elif args.model_name == 'retro':
-        pass
-       # model = #QANET --- Requires that we make a forward pass through both Sketchy and Intensive
+
+        model = RetroQANet(word_vectors=word_vectors,
+                            char_vectors=char_vectors,
+                            hidden_size=args.hidden_size,
+                            intensive_path=args.load_path_i,
+                            sketchy_path=args.load_path_s,
+                            gpu_ids=args.gpu_ids,
+                            drop_prob=args.drop_prob) #Outer
+
     model = nn.DataParallel(model, args.gpu_ids)
 
     if args.load_path:

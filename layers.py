@@ -404,7 +404,7 @@ class FV(nn.Module):
         sq1 = masked_sigmoid(torch.squeeze(M_X), mask, log_sigmoid=False)
     
         y_i = torch.squeeze(sq1[:,0])
-        
+
         return y_i
 
 
@@ -459,18 +459,23 @@ class RV_TAV(nn.Module):
         super(RV, self).__init__()
 
         # Allows us to train weights for RV
-        self.beta = nn.Parameter(torch.zeros(1, 1) + 0.5)
+        self.beta = nn.Parameter(torch.zeros(1) + 0.5)
         # Allows us to train Threshold for TAV
-        self.ans = nn.Parameter(torch.zeros(1, 1) + 0.75)
+        self.ans = nn.Parameter(torch.zeros(1) + 0.75)
 
-    def forward(intensive_prediction, sketchy_prediction, s_pred, e_pred, max_len=15, use_squad_v2=True):
+    def forward(sketchy_prediction, intensive_prediction, s_pred, e_pred, max_len=15, use_squad_v2=True):
         starts, ends = discretize(
             s_pred.exp(), e_pred.exp(), max_len, use_squad_v2)
-      # Combines answerability estimate from both the sketchy and intensive models
-        answerable = self.beta * intensive_prediction + \
+        # Combines answerability estimate from both the sketchy and intensive models
+        pred_answerable = self.beta * intensive_prediction + \
             (1-self.beta) * sketchy_prediction
-        if answerable > self.ans and ends[0] != 0:
-            s, e = s_pred, e_pred
-        else:
-            s, e = []
+        # Calcultes how certain we are of intesives prediction
+        has = torch.tensor([s_pred[x, starts[x]] * e_pred[x, ends[x]] for x in range(s_pred.shape(0))])
+        null = s_pred[:, 0] * e_pred[:, 0]
+        span_answerable = null - has
+        # Combines our answerability with our certainty
+        answerable = pred_answerable + span_answerable 
+        s = s_pred[answerable > ans] = 0
+        e = e_pred[answerable > ans] = 0
         return s, e
+        
