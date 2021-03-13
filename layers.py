@@ -456,7 +456,7 @@ class RV_TAV(nn.Module):
     """
 
     def __init__(self):
-        super(RV, self).__init__()
+        super(RV_TAV, self).__init__()
 
         # Allows us to train weights for RV
         self.beta = nn.Parameter(torch.zeros(1) + 0.5)
