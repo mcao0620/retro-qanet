@@ -425,11 +425,13 @@ class IntensiveOutput(nn.Module):
 
     def forward(self, M_1, M_2, M_3, mask):
         y_i = self.ifv(M_1, M_2, M_3, mask)
+        logits_1 = torch.squeeze(torch.cat((M_1, M_2), dim=-1) @ self.Ws)
+        logits_2 = torch.squeeze(torch.cat((M_1, M_3), dim=-1) @ self.We)
 
-        s = masked_softmax(torch.squeeze(torch.cat((M_1, M_2), dim=-1) @ self.Ws), mask, dim=-1, log_softmax=True)
-        e = masked_softmax(torch.squeeze(torch.cat((M_1, M_3), dim=-1) @ self.We), mask, dim=-1, log_softmax=True)
-        print(e.shape)
-        return y_i, (s, e)
+        log_p1 = masked_softmax(logits_1, mask, dim=-1, log_softmax=True)
+        log_p2 = masked_softmax(logits_2, mask, dim=-1, log_softmax=True)
+        print(log_p2.shape, log_p1.shape)
+        return y_i, (log_p1, log_p2)
 
 
 class SketchyOutput(nn.Module):
