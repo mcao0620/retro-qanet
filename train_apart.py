@@ -143,7 +143,6 @@ def main(args):
                 elif args.model_name == 'retro':
                     log_p1, log_p2 = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
                     loss = F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2)
-                    print(log_p1, y1, log_p2, y2)
                 else:
                     raise ValueError(
                         'invalid --model_name, sketchy or intensive required')
