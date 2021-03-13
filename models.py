@@ -229,14 +229,14 @@ class RetroQANet(nn.Module):
                               char_vectors=char_vectors,
                               hidden_size=hidden_size,
                               drop_prob=drop_prob)
-
+        self.sketchy = nn.DataParallel(self.sketchy, gpu_ids)
         self.sketchy, _ = util.load_model(self.sketchy, sketchy_path, gpu_ids)
 
         self.intensive = IntensiveReader(word_vectors=word_vectors,
                                 char_vectors=char_vectors,
                                 hidden_size=hidden_size,
                                 drop_prob=drop_prob)
-        
+        self.intensive = nn.DataParallel(self.intensive, gpu_ids)
         self.intensive, _ = util.load_model(self.intensive, intensive_path, gpu_ids)
 
         self.RV_TAV = layers.RV_TAV()
