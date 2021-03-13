@@ -463,8 +463,7 @@ class RV_TAV(nn.Module):
         # Allows us to train Threshold for TAV
         self.ans = nn.Parameter(torch.zeros(1) + 0.75)
 
-    def forward(sketchy_prediction, intensive_prediction, log_p1, log_p2, max_len=15, use_squad_v2=True):
-        print(sketchy_prediction, intensive_prediction, log_p1, log_p2)
+    def forward(self, sketchy_prediction, intensive_prediction, log_p1, log_p2, max_len=15, use_squad_v2=True):
         starts, ends = discretize(
             log_p1.exp(), log_p2.exp(), max_len, use_squad_v2)
         # Combines answerability estimate from both the sketchy and intensive models
