@@ -131,6 +131,7 @@ def main(args):
                 y1, y2 = y1.to(device), y2.to(device)
                 if args.model_name == 'sketchy':
                     yi = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
+                    print(yi)
                     log_p1 = None
                     log_p2 = None
                     #print(yi, y1)
