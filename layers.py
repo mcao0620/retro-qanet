@@ -425,6 +425,8 @@ class IntensiveOutput(nn.Module):
 
     def forward(self, M_1, M_2, M_3, mask):
         y_i = self.ifv(M_1, M_2, M_3, mask)
+        print(torch.cat((M_1, M_3), dim=-1).shape)
+        print(torch.squeeze(torch.cat((M_1, M_3), dim=-1) @ self.We).shape)
         s = masked_softmax(torch.squeeze(torch.cat((M_1, M_2), dim=-1) @ self.Ws), mask, dim=-1, log_softmax=True)
         e = masked_softmax(torch.squeeze(torch.cat((M_1, M_3), dim=-1) @ self.We), mask, dim=-1, log_softmax=True)
 
