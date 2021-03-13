@@ -249,6 +249,7 @@ class RetroQANet(nn.Module):
 
         yi_s = self.sketchy(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
         yi_i, log_p1, log_p2 = self.intensive(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
+        print(yi_s, yi_i, log_p1, log_p2)
         out = self.RV_TAV(yi_s, yi_i, log_p1, log_p2)
 
         return out
