@@ -404,7 +404,7 @@ class FV(nn.Module):
         sq1 = masked_sigmoid(torch.squeeze(M_X), mask, log_sigmoid=False)
     
         y_i = torch.squeeze(sq1[:,0])
-
+        print(y_i)
         return y_i
 
 
@@ -461,8 +461,8 @@ class RV_TAV(nn.Module):
         # Allows us to train weights for RV
         self.beta = nn.Parameter(torch.zeros(1) + 0.1)
         # Allows us to train Threshold for TAV
-        self.ans = nn.Parameter(torch.ones(1))
-        self.lam = nn.Parameter(torch.zeros(1) + 0.9)
+        self.ans = nn.Parameter(torch.zeros(1) + 0.5)
+        self.lam = nn.Parameter(torch.zeros(1))
 
     def forward(self, sketchy_prediction, intensive_prediction, log_p1, log_p2, max_len=15, use_squad_v2=True):
         s_in = log_p1.exp()
@@ -470,7 +470,6 @@ class RV_TAV(nn.Module):
         starts, ends = discretize(
             s_in, e_in, max_len, use_squad_v2)
         # Combines answerability estimate from both the sketchy and intensive models
-        print(intensive_prediction, sketchy_prediction) 
         pred_answerable = self.beta * intensive_prediction + \
             (1-self.beta) * sketchy_prediction
         # Calcultes how certain we are of intesives prediction
@@ -478,7 +477,6 @@ class RV_TAV(nn.Module):
         null = (log_p1[:, 0] * log_p2[:, 0]).to(device='cuda')
         span_answerable = null - has
         # Combines our answerability with our certainty
-        print(pred_answerable, span_answerable)
         answerable = self.lam * pred_answerable + (1 - self.lam) * span_answerable 
         l_p1 = log_p1.clone()
         l_p2 = log_p2.clone()
