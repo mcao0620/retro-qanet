@@ -418,15 +418,18 @@ class IntensiveOutput(nn.Module):
         super(IntensiveOutput, self).__init__()
         self.ifv = FV(hidden_size)
         # need to make these the size of M_i
-        self.Ws = nn.Parameter(torch.zeros(hidden_size * 2, 1))
-        self.We = nn.Parameter(torch.zeros(hidden_size * 2, 1))
-
-        self.softmax = nn.Softmax(0)
+        w1 = torch.empty(128 * 2)
+        w2 = torch.empty(128 * 2)
+        lim = 3 / (2 * 128)
+        nn.init.uniform_(w1, -math.sqrt(lim), math.sqrt(lim))
+        nn.init.uniform_(w2, -math.sqrt(lim), math.sqrt(lim))
+        self.Ws = nn.Parameter(w1)
+        self.We = nn.Parameter(w2)
 
     def forward(self, M_1, M_2, M_3, mask):
         y_i = self.ifv(M_1, M_2, M_3, mask)
-        logits_1 = torch.squeeze(torch.cat((M_1, M_2), dim=-1) @ self.Ws)
-        logits_2 = torch.squeeze(torch.cat((M_1, M_3), dim=-1) @ self.We)
+        logits_1 = torch.squeeze(torch.cat((M_1, M_2), dim=-1))
+        logits_2 = torch.squeeze(torch.cat((M_1, M_3), dim=-1))
 
         log_p1 = masked_softmax(logits_1, mask, dim=-1, log_softmax=True)
         log_p2 = masked_softmax(logits_2, mask, dim=-1, log_softmax=True)
@@ -459,10 +462,10 @@ class RV_TAV(nn.Module):
         super(RV_TAV, self).__init__()
 
         # Allows us to train weights for RV
-        self.beta = nn.Parameter(torch.zeros(1) + 0.1)
+        self.beta = nn.Parameter(torch.tensor[0.1])
         # Allows us to train Threshold for TAV
-        self.ans = nn.Parameter(torch.zeros(1) + 0.5)
-        self.lam = nn.Parameter(torch.zeros(1) + 0.9)
+        self.ans = nn.Parameter(torch.tensor[0.5]))
+        self.lam = nn.Parameter(torch.tensor([0.5]))
 
     def forward(self, sketchy_prediction, intensive_prediction, log_p1, log_p2, max_len=15, use_squad_v2=True):
         s_in = log_p1.exp()

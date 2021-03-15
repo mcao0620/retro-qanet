@@ -22,11 +22,6 @@ from util import collate_fn, SQuAD
 
 # TO TRAIN YOU MUST ALSO SET --model_name (skecthy or intensive)
 
-import os
-
-os.environ['KMP_DUPLICATE_LIB_OK']='True'
-
-
 def main(args):
     # Set up logging and devices
     args.save_dir = util.get_save_dir(args.save_dir, args.name, training=True)
@@ -92,8 +87,8 @@ def main(args):
                                  maximize_metric=args.maximize_metric,
                                  log=log)
 
-    # Get optimizer and scheduler
-    optimizer = optim.Adadelta(model.parameters(), args.lr,
+    # Get optimizer and scheduler(params based on QANET paper)
+    optimizer = optim.Adam(model.parameters(), args.lr, betas=(0.8,0.999), eps= 1 * (10**(-7))
                                weight_decay=args.l2_wd)
     scheduler = sched.LambdaLR(optimizer, lambda s: 1.)  # Constant LR
 
@@ -103,14 +98,14 @@ def main(args):
     train_loader = data.DataLoader(train_dataset,
                                    batch_size=args.batch_size,
                                    shuffle=True,
-                                   num_workers=0,
+                                   num_workers=args.num_workers,
                                    collate_fn=collate_fn)
 
     dev_dataset = SQuAD(args.dev_record_file, args.use_squad_v2)
     dev_loader = data.DataLoader(dev_dataset,
                                  batch_size=args.batch_size,
                                  shuffle=False,
-                                 num_workers=0,
+                                 num_workers=args.num_workers,
                                  collate_fn=collate_fn)
 
     # Train
