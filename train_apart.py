@@ -88,7 +88,7 @@ def main(args):
                                  log=log)
 
     # Get optimizer and scheduler(params based on QANET paper)
-    optimizer = optim.Adam(model.parameters(), args.lr, betas=(0.8,0.999), eps= 1 * (10**(-7))
+    optimizer = optim.Adam(model.parameters(), args.lr, betas=(0.8,0.999), eps=(1 * (10**(-7))),
                                weight_decay=args.l2_wd)
     scheduler = sched.LambdaLR(optimizer, lambda s: 1.)  # Constant LR
 
