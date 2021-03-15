@@ -418,9 +418,9 @@ class IntensiveOutput(nn.Module):
         super(IntensiveOutput, self).__init__()
         self.ifv = FV(hidden_size)
         # need to make these the size of M_i
-        w1 = torch.empty(128 * 2)
-        w2 = torch.empty(128 * 2)
-        lim = 3 / (2 * 128)
+        w1 = torch.empty(hidden_size * 2)
+        w2 = torch.empty(hidden_size * 2)
+        lim = 3 / (2 * hidden_size)
         nn.init.uniform_(w1, -math.sqrt(lim), math.sqrt(lim))
         nn.init.uniform_(w2, -math.sqrt(lim), math.sqrt(lim))
         self.Ws = nn.Parameter(w1)
@@ -433,6 +433,7 @@ class IntensiveOutput(nn.Module):
 
         log_p1 = masked_softmax(logits_1, mask, dim=-1, log_softmax=True)
         log_p2 = masked_softmax(logits_2, mask, dim=-1, log_softmax=True)
+
         return y_i, log_p1, log_p2
 
 

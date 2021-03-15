@@ -136,6 +136,7 @@ def main(args):
                 elif args.model_name == 'intensive':
                     yi, log_p1, log_p2 = model(
                         cw_idxs, qw_idxs, cc_idxs, qc_idxs)
+                    print(yi, log_p1, log_p2)
                     loss = args.alpha_1 * bceLoss(yi, torch.where(y1 == 0, 1, 0).type_as(
                         yi)) + args.alpha_2 * (F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2))
                 elif args.model_name == 'retro':
