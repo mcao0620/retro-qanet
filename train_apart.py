@@ -22,6 +22,7 @@ from util import collate_fn, SQuAD
 
 # TO TRAIN YOU MUST ALSO SET --model_name (skecthy or intensive)
 
+
 def main(args):
     # Set up logging and devices
     args.save_dir = util.get_save_dir(args.save_dir, args.name, training=True)
@@ -87,8 +88,8 @@ def main(args):
                                  maximize_metric=args.maximize_metric,
                                  log=log)
 
-    # Get optimizer and scheduler(params based on QANET paper)
-    optimizer = optim.Adam(model.parameters(), args.lr, betas=(0.8,0.999), eps=(1 * (10**(-7))),
+    # Get optimizer and scheduler
+    optimizer = optim.Adadelta(model.parameters(), args.lr,
                                weight_decay=args.l2_wd)
     scheduler = sched.LambdaLR(optimizer, lambda s: 1.)  # Constant LR
 
@@ -136,7 +137,6 @@ def main(args):
                 elif args.model_name == 'intensive':
                     yi, log_p1, log_p2 = model(
                         cw_idxs, qw_idxs, cc_idxs, qc_idxs)
-                    print(yi, log_p1, log_p2)
                     loss = args.alpha_1 * bceLoss(yi, torch.where(y1 == 0, 1, 0).type_as(
                         yi)) + args.alpha_2 * (F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2))
                 elif args.model_name == 'retro':
