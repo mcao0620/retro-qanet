@@ -421,7 +421,7 @@ class StackedEncoder(nn.Module):
     Args:
     """
 
-    def __init__(self, num_conv_blocks, kernel_size, num_heads=8, d_model=128, dropout=0.1, device="cuda:0"):
+    def __init__(self, num_conv_blocks, kernel_size, num_heads=4, d_model=128, dropout=0.1, device="cuda:0"):
 
         super(StackedEncoder, self).__init__()
         self.pos_encoder = PositionalEncoding(d_model, dropout)
