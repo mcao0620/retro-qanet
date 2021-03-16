@@ -265,6 +265,11 @@ class ConvBlock(nn.Module):
         self.pointwise = nn.Conv1d(
             in_channels, out_channels, kernel_size=1, padding=0, bias=bias)
 
+        nn.init.kaiming_normal_(self.depthwise.weight)
+        nn.init.constant_(self.depthwise_conv.bias, 0.0)
+        nn.init.kaiming_normal_(self.depthwise_conv.weight)
+        nn.init.constant_(self.pointwise.bias, 0.0)
+
     def forward(self, x):
         x = torch.transpose(x, 1, 2)
         out = self.depthwise(x)
@@ -398,12 +403,12 @@ class FV(nn.Module):
         self.verify_linear = nn.Linear(hidden_size * 3, 1)
 
     def forward(self, M_1, M_2, M_3, mask):
-        #linear layer
+        # linear layer
         M_X = self.verify_linear(torch.cat((M_1, M_2, M_3), dim=-1))
-        #produce logits
+        # produce logits
         sq1 = masked_sigmoid(torch.squeeze(M_X), mask, log_sigmoid=False)
-    
-        y_i = torch.squeeze(sq1[:,0])
+
+        y_i = torch.squeeze(sq1[:, 0])
 
         return y_i
 
@@ -477,14 +482,15 @@ class RV_TAV(nn.Module):
         pred_answerable = self.beta * intensive_prediction + \
             (1-self.beta) * sketchy_prediction
         # Calcultes how certain we are of intesives prediction
-        has = torch.tensor([log_p1[x, starts[x]] * log_p2[x, ends[x]] for x in range(log_p1.shape[0])]).to(device='cuda')
+        has = torch.tensor([log_p1[x, starts[x]] * log_p2[x, ends[x]]
+                            for x in range(log_p1.shape[0])]).to(device='cuda')
         null = (log_p1[:, 0] * log_p2[:, 0]).to(device='cuda')
         span_answerable = null - has
         # Combines our answerability with our certainty
-        not_answerable = self.lam * pred_answerable + (1 - self.lam) * span_answerable 
+        not_answerable = self.lam * pred_answerable + \
+            (1 - self.lam) * span_answerable
         l_p1 = log_p1.clone()
         l_p2 = log_p2.clone()
         l_p1[not_answerable > self.ans] = 0
         l_p2[not_answerable > self.ans] = 0
         return l_p1, l_p2
-        
