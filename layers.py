@@ -266,8 +266,8 @@ class ConvBlock(nn.Module):
             in_channels, out_channels, kernel_size=1, padding=0, bias=bias)
 
         nn.init.kaiming_normal_(self.depthwise.weight)
-        nn.init.constant_(self.depthwise_conv.bias, 0.0)
-        nn.init.kaiming_normal_(self.depthwise_conv.weight)
+        nn.init.constant_(self.depthwise.bias, 0.0)
+        nn.init.kaiming_normal_(self.pointwise.weight)
         nn.init.constant_(self.pointwise.bias, 0.0)
 
     def forward(self, x):
