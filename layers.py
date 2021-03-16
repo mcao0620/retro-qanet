@@ -275,7 +275,7 @@ class ConvBlock(nn.Module):
         out = self.depthwise(x)
         out = self.pointwise(out)
 
-        return torch.transpose(F.relu(out + x), 1, 2)
+        return torch.transpose(F.relu(out) + x, 1, 2)
 
 
 class FFNBlock(nn.Module):
@@ -290,7 +290,7 @@ class FFNBlock(nn.Module):
         norm_out = self.norm(x)
         ffn_layer_out = self.ffn_layer(norm_out)
 
-        return self.dropout_layer(F.relu(x + ffn_layer_out))
+        return self.dropout_layer(F.relu(x) + ffn_layer_out)
 
 
 class SelfAttentionBlock(nn.Module):
@@ -300,12 +300,10 @@ class SelfAttentionBlock(nn.Module):
         self.norm = nn.LayerNorm(d_model)
         self.self_attn_layer = nn.MultiheadAttention(
             d_model, num_heads, dropout)
-
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
         norm_out = self.norm(x)
-
         attn_output, attn_output_weights = self.self_attn_layer(
             norm_out, norm_out, norm_out)
 
@@ -382,8 +380,11 @@ class StackedEncoder(nn.Module):
     def forward(self, x):
         x = self.pos_encoder(x)
 
-        for conv_block in self.conv_blocks:
+        for i, conv_block in enumerate(self.conv_blocks):
             x = conv_block(x)
+
+            if (i+1) % 2 == 0:
+                x = F.dropout(out, p=dropout)
 
         x = self.self_attn_block(x)
 
