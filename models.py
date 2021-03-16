@@ -93,24 +93,27 @@ class SketchyReader(nn.Module):
         self.model_resizer = layers.EmbeddingResizer(in_channels=512,
                                                out_channels=128)
 
-        self.enc = layers.StackedEncoder(num_conv_blocks=7,
+        self.enc = layers.StackedEncoder(num_conv_blocks=4,
                                          kernel_size=7,
                                          dropout=drop_prob)     # embedding encoder layer
 
         self.att = layers.BiDAFAttention(hidden_size=128,
                                          drop_prob=drop_prob)     # context-query attention layer
 
-        self.mod1 = layers.StackedEncoder(num_conv_blocks=2,
-                                         kernel_size=7,
-                                         dropout=drop_prob)     # model layer
+        # self.mod1 = layers.StackedEncoder(num_conv_blocks=2,
+        #                                  kernel_size=7,
+        #                                  dropout=drop_prob)     # model layer
 
-        self.mod2 = layers.StackedEncoder(num_conv_blocks=2,
-                                         kernel_size=7,
-                                         dropout=drop_prob)     # model layer
+        # self.mod2 = layers.StackedEncoder(num_conv_blocks=2,
+        #                                  kernel_size=7,
+        #                                  dropout=drop_prob)     # model layer
 
-        self.mod3 = layers.StackedEncoder(num_conv_blocks=2,
-                                         kernel_size=7,
-                                         dropout=drop_prob)     # model layer
+        # self.mod3 = layers.StackedEncoder(num_conv_blocks=2,
+        #                                  kernel_size=7,
+        #                                  dropout=drop_prob)     # model layer
+        self.model_encoder_layers = nn.ModuleList([layers.StackedEncoder(num_conv_blocks=2,
+                                                                        kernel_size=7,
+                                                                        dropout=drop_prob) for _ in range(7)])
 
         self.out = layers.SketchyOutput(hidden_size=128)     # output layer
     
@@ -134,9 +137,24 @@ class SketchyReader(nn.Module):
 
         att = self.model_resizer(att)
 
-        mod1 = self.mod1(att)        # (batch_size, c_len, 2 * hidden_size)
-        mod2 = self.mod2(mod1)        # (batch_size, c_len, 2 * hidden_size)
-        mod3 = self.mod3(mod2)        # (batch_size, c_len, 2 * hidden_size)
+        mod1 = att
+
+        for layer in self.model_encoder_layers:
+            mod1 = layer(mod1)
+        
+        mod2 = mod1
+
+        for layer in self.model_encoder_layers:
+            mod2 = layer(mod2)
+        
+        mod3 = mod2
+
+        for layer in self.model_encoder_layers:
+            mod3 = layer(mod3)
+        
+        # mod1 = self.mod1(att)        # (batch_size, c_len, 2 * hidden_size)
+        # mod2 = self.mod2(mod1)        # (batch_size, c_len, 2 * hidden_size)
+        # mod3 = self.mod3(mod2)        # (batch_size, c_len, 2 * hidden_size)
 
         out = self.out(mod1, mod2, mod3, c_mask)
 
@@ -164,24 +182,27 @@ class IntensiveReader(nn.Module):
         self.model_resizer = layers.EmbeddingResizer(in_channels=512,
                                                out_channels=128)
 
-        self.enc = layers.StackedEncoder(num_conv_blocks=7,
+        self.enc = layers.StackedEncoder(num_conv_blocks=4,
                                          kernel_size=7,
                                          dropout=drop_prob)     # embedding encoder layer
 
         self.att = layers.BiDAFAttention(hidden_size=128,
                                          drop_prob=drop_prob)     # context-query attention layer
 
-        self.mod1 = layers.StackedEncoder(num_conv_blocks=2,
-                                         kernel_size=7,
-                                         dropout=drop_prob)     # model layer
+        # self.mod1 = layers.StackedEncoder(num_conv_blocks=2,
+        #                                  kernel_size=7,
+        #                                  dropout=drop_prob)     # model layer
 
-        self.mod2 = layers.StackedEncoder(num_conv_blocks=2,
-                                         kernel_size=7,
-                                         dropout=drop_prob)     # model layer
+        # self.mod2 = layers.StackedEncoder(num_conv_blocks=2,
+        #                                  kernel_size=7,
+        #                                  dropout=drop_prob)     # model layer
 
-        self.mod3 = layers.StackedEncoder(num_conv_blocks=2,
-                                         kernel_size=7,
-                                         dropout=drop_prob)     # model layer
+        # self.mod3 = layers.StackedEncoder(num_conv_blocks=2,
+        #                                  kernel_size=7,
+        #                                  dropout=drop_prob)     # model layer
+        self.model_encoder_layers = nn.ModuleList([layers.StackedEncoder(num_conv_blocks=2,
+                                                                        kernel_size=7,
+                                                                        dropout=drop_prob) for _ in range(7)])
 
         self.out = layers.IntensiveOutput(hidden_size=128)     # output layer
     
@@ -205,9 +226,26 @@ class IntensiveReader(nn.Module):
 
         att = self.model_resizer(att)
 
-        mod1 = self.mod1(att)        # (batch_size, c_len, 2 * hidden_size)
-        mod2 = self.mod2(mod1)        # (batch_size, c_len, 2 * hidden_size)
-        mod3 = self.mod3(mod2)        # (batch_size, c_len, 2 * hidden_size)
+        mod1 = att
+
+        for layer in self.model_encoder_layers:
+            mod1 = layer(mod1)
+        
+        mod2 = mod1
+
+        for layer in self.model_encoder_layers:
+            mod2 = layer(mod2)
+        
+        mod3 = mod2
+
+        for layer in self.model_encoder_layers:
+            mod3 = layer(mod3)
+        
+        # mod1 = self.mod1(att)        # (batch_size, c_len, 2 * hidden_size)
+        # mod2 = self.mod2(mod1)        # (batch_size, c_len, 2 * hidden_size)
+        # mod3 = self.mod3(mod2)        # (batch_size, c_len, 2 * hidden_size)
+
+
 
         out = self.out(mod1, mod2, mod3, c_mask)
 
