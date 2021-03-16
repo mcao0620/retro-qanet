@@ -7,6 +7,7 @@ Author:
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import math
 
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from util import masked_softmax
@@ -202,17 +203,16 @@ class BiDAFAttention(nn.Module):
 
 class BiDAFOutput(nn.Module):
     """Output layer used by BiDAF for question answering.
-
     Computes a linear transformation of the attention and modeling
     outputs, then takes the softmax of the result to get the start pointer.
     A bidirectional LSTM is then applied the modeling output to produce `mod_2`.
     A second linear+softmax of the attention output and `mod_2` is used
     to get the end pointer.
-
     Args:
         hidden_size (int): Hidden size used in the BiDAF model.
         drop_prob (float): Probability of zero-ing out activations.
     """
+
     def __init__(self, hidden_size, drop_prob):
         super(BiDAFOutput, self).__init__()
         self.att_linear_1 = nn.Linear(8 * hidden_size, 1)
@@ -237,3 +237,262 @@ class BiDAFOutput(nn.Module):
         log_p2 = masked_softmax(logits_2.squeeze(), mask, log_softmax=True)
 
         return log_p1, log_p2
+
+
+class ConvBlock(nn.Module):
+    """
+    """
+
+    def __init__(self, in_channels, out_channels, kernel_size, bias=True):
+        super(ConvBlock, self).__init__()
+
+        self.depthwise = nn.Conv1d(
+            in_channels, in_channels, kernel_size=kernel_size, padding=kernel_size//2, groups=in_channels, bias=False)
+
+        self.pointwise = nn.Conv1d(
+            in_channels, out_channels, kernel_size=1, padding=0, bias=bias)
+
+        # nn.init.kaiming_normal_(self.depthwise.weight)
+        # nn.init.constant_(self.depthwise.bias, 0.0)
+        # nn.init.kaiming_normal_(self.pointwise.weight)
+        # nn.init.constant_(self.pointwise.bias, 0.0)
+
+    def forward(self, x):
+        x = torch.transpose(x, 1, 2)
+        out = self.depthwise(x)
+        out = self.pointwise(out)
+
+        return torch.transpose(F.relu(out) + x, 1, 2)
+
+
+class FFNBlock(nn.Module):
+
+    def __init__(self, d_model, dropout=0.1, hidden_size=8):
+        super(FFNBlock, self).__init__()
+        self.norm = nn.LayerNorm(d_model)
+        self.ffn_layer = nn.Linear(d_model, d_model, bias=True)
+        self.dropout_layer = nn.Dropout(dropout)
+
+    def forward(self, x):
+        norm_out = self.norm(x)
+        ffn_layer_out = self.ffn_layer(norm_out)
+
+        return self.dropout_layer(F.relu(x) + ffn_layer_out)
+
+
+class SelfAttentionBlock(nn.Module):
+
+    def __init__(self, d_model, num_heads, dropout=0.1):
+        super(SelfAttentionBlock,  self).__init__()
+        self.norm = nn.LayerNorm(d_model)
+        self.self_attn_layer = nn.MultiheadAttention(
+            d_model, num_heads, dropout)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x):
+        norm_out = self.norm(x)
+        attn_output, attn_output_weights = self.self_attn_layer(
+            norm_out, norm_out, norm_out)
+
+        return self.dropout(x + attn_output)
+
+
+class PositionalEncoding(nn.Module):
+    """ Position Encoder which injects positional structure and information of to the input sequence.
+    This particular implementation was derived from the one implemented on the pytorch transformer in the pytorch documentation(https://pytorch.org/tutorials/beginner/transformer_tutorial.html#define-the-model)
+    Args:
+        d_model () :
+        dropout () :
+        max_len () :
+    """
+
+    def __init__(self, d_model, dropout=0.1, max_len=5000):
+        super(PositionalEncoding, self).__init__()
+        self.dropout = nn.Dropout(p=dropout)
+
+        pe = torch.zeros(max_len, d_model)
+        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
+        div_term = torch.exp(torch.arange(
+            0, d_model, 2).float() * (-math.log(10000.0) / d_model))
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        pe = pe.unsqueeze(0).transpose(0, 1)
+        self.register_buffer('pe', pe)
+
+    def forward(self, x):
+        x = x + self.pe[:x.size(0), :]
+        return self.dropout(x)
+
+
+class EmbeddingResizer(nn.Module):
+    """ Resizes input embedding to hidden size of 128 that can be passed to the convolution blocks
+    Args:
+    """
+
+    def __init__(self, in_channels, out_channels,
+                 kernel_size=1, stride=1, padding=0, groups=1, bias=False):
+        super(EmbeddingResizer, self).__init__()
+
+        self.out = nn.Conv1d(
+            in_channels, out_channels,
+            kernel_size, stride=stride,
+            padding=padding, groups=groups, bias=bias)
+        nn.init.xavier_uniform_(self.out.weight)
+
+    def forward(self, x):
+        x = torch.transpose(x, 1, 2)
+        return torch.transpose(self.out(x), 1, 2)
+
+
+class StackedEncoder(nn.Module):
+    """ Base module for the Embedding and Model Encoder used in QANet.
+    Args:
+    """
+
+    def __init__(self, num_conv_blocks, kernel_size, num_heads=8, d_model=128, dropout=0.1):
+
+        super(StackedEncoder, self).__init__()
+        self.pos_encoder = PositionalEncoding(d_model, dropout)
+
+        self.conv_blocks = nn.ModuleList([ConvBlock(d_model, d_model, kernel_size)
+                                          for _ in range(num_conv_blocks)])
+
+        self.self_attn_block = SelfAttentionBlock(d_model, num_heads, dropout)
+        self.ffn_block = FFNBlock(d_model)
+
+        self.num_conv_blocks = num_conv_blocks
+
+        self.dropout = dropout
+
+    def forward(self, x):
+        x = self.pos_encoder(x)
+
+        for i, conv_block in enumerate(self.conv_blocks):
+            x = conv_block(x)
+
+            if (i+1) % 2 == 0:
+                x = F.dropout(x, p=self.dropout)
+
+        x = self.self_attn_block(x)
+
+        return self.ffn_block(x)
+
+
+class QANetOutput(nn.Module):
+    def __init__(self, hidden_size):
+        super(QANetOutput, self).__init__()
+
+        self.W1 = nn.Linear(2 * hidden_size, 1, bias=False)
+        self.W2 = nn.Linear(2 * hidden_size, 1, bias=False)
+
+    def forward(self, M_1, M_2, M_3, mask):
+        begin = torch.cat([M_1, M_2], dim=2)
+        begin = self.W1(begin)
+        
+        end = torch.cat([M_1, M_3], dim=2)
+        end = self.W2(end)
+
+        log_p1 = masked_softmax(begin.squeeze(), mask, log_softmax=True)
+        log_p2 = masked_softmax(end.squeeze(), mask, log_softmax=True)
+
+        return log_p1, log_p2
+
+class FV(nn.Module):
+    """Front Verification layer utilized as part of Retrospective reader
+    to augment our QANet by addressing the question of answerability
+    Args:
+        hidden_size (int): Hidden size used in the BiDAF model.
+    """
+
+    def __init__(self, hidden_size):
+        super(FV, self).__init__()
+
+        self.verify_linear = nn.Linear(hidden_size * 3, 1)
+
+    def forward(self, M_1, M_2, M_3, mask):
+        # linear layer
+        M_X = self.verify_linear(torch.cat((M_1, M_2, M_3), dim=-1))
+        # produce logits
+        sq1 = masked_sigmoid(torch.squeeze(M_X), mask, log_sigmoid=False)
+
+        y_i = torch.squeeze(sq1[:, 0])
+
+        return y_i
+
+
+class IntensiveOutput(nn.Module):
+    """Outputs the results of running the sample through the intensive module, implementing internal front verification and a span predicition
+    Args:
+        hidden_size (int): Hidden size used in the BiDAF model.
+    """
+
+    def __init__(self, hidden_size):
+        super(IntensiveOutput, self).__init__()
+        self.ifv = FV(hidden_size)
+        # need to make these the size of M_i
+        self.Ws = nn.Linear(2 * hidden_size, 1, bias=False)
+        self.We = nn.Linear(2 * hidden_size, 1, bias=False)
+
+    def forward(self, M_1, M_2, M_3, mask):
+        y_i = self.ifv(M_1, M_2, M_3, mask)
+        logits_1 = self.Ws(torch.cat((M_1, M_2), dim=-1)).squeeze()
+        logits_2 = self.We(torch.cat((M_1, M_3), dim=-1)).squeeze()
+
+        log_p1 = masked_softmax(logits_1, mask, dim=-1, log_softmax=True)
+        log_p2 = masked_softmax(logits_2, mask, dim=-1, log_softmax=True)
+
+        return y_i, log_p1, log_p2
+
+
+class SketchyOutput(nn.Module):
+    """Outputs the results of running the sample throuhg the sketchy reading module, implements external front verification
+    Args:
+        hidden_size (int): Hidden size used in the BiDAF model.
+    """
+
+    def __init__(self, hidden_size):
+        super(SketchyOutput, self).__init__()
+        self.efv = FV(hidden_size)
+
+    def forward(self, M_1, M_2, M_3, mask):
+        y_i = self.efv(M_1, M_2, M_3, mask)
+
+        return y_i
+
+
+class RV_TAV(nn.Module):
+    """Rear Verification and Threshold Answer Verification layer utilized as part of Retrospective reader
+    to augment our QANet by combining the answerability determined by our sketchy model and ur intensive
+    model either returning a span or no answer at all.
+    """
+
+    def __init__(self):
+        super(RV_TAV, self).__init__()
+
+        # Allows us to train weights for RV
+        self.beta = nn.Parameter(torch.tensor[0.1])
+        # Allows us to train Threshold for TAV
+        self.ans = nn.Parameter(torch.tensor([0.5]))
+        self.lam = nn.Parameter(torch.tensor([0.5]))
+
+    def forward(self, sketchy_prediction, intensive_prediction, log_p1, log_p2, max_len=15, use_squad_v2=True):
+        s_in = log_p1.exp()
+        e_in = log_p2.exp()
+        starts, ends = discretize(
+            s_in, e_in, max_len, use_squad_v2)
+        # Combines answerability estimate from both the sketchy and intensive models
+        pred_answerable = self.beta * intensive_prediction + \
+            (1-self.beta) * sketchy_prediction
+        # Calcultes how certain we are of intesives prediction
+        has = torch.tensor([log_p1[x, starts[x]] * log_p2[x, ends[x]]
+                            for x in range(log_p1.shape[0])]).to(device='cuda')
+        null = (log_p1[:, 0] * log_p2[:, 0]).to(device='cuda')
+        span_answerable = null - has
+        # Combines our answerability with our certainty
+        not_answerable = self.lam * pred_answerable + \
+            (1 - self.lam) * span_answerable
+        l_p1 = log_p1.clone()
+        l_p2 = log_p2.clone()
+        l_p1[not_answerable > self.ans] = 0
+        l_p2[not_answerable > self.ans] = 0
+        return l_p1, l_p2
