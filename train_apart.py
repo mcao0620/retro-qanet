@@ -222,6 +222,7 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
             y1, y2 = y1.to(device), y2.to(device)
             if model_name == 'sketchy':
                 yi = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
+                print(yi, y1)
                 loss = bceLoss(yi, torch.where(y1 == 0, 1, 0).type_as(yi))
                 starts, ends = [[0 if x > 0.5 else x for x in y1], [0 if y > 0.5 else y for y in y2]]
             elif model_name == 'intensive':
@@ -231,6 +232,7 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
                     yi)) + a2 * (F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2))
                 # Get F1 and EM scores
                 p1, p2 = log_p1.exp(), log_p2.exp()
+                print(yi, y1, p1, y2, p2)
                 starts, ends = util.discretize(p1, p2, max_len, use_squad_v2)
                 starts, ends = starts.tolist(), ends.tolist()
             elif model_name == 'retro':
