@@ -262,7 +262,7 @@ class ConvBlock(nn.Module):
         out = self.depthwise(x)
         out = self.pointwise(out)
 
-        return torch.transpose(F.relu(out) + x, 1, 2)
+        return torch.transpose(F.relu(out), 1, 2)
 
 
 # class FFNBlock(nn.Module):
@@ -499,7 +499,7 @@ class StackedEncoder(nn.Module):
         x = self.pos_norm(x)
 
         for i, conv_block in enumerate(self.conv_blocks):
-            x = F.relu(conv_block(x))
+            x = conv_block(x)
             x = x + res
 
             if (i+1) % 2 == 0:
