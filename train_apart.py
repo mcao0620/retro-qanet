@@ -130,8 +130,6 @@ def main(args):
                 y1, y2 = y1.to(device), y2.to(device)
                 if args.model_name == 'sketchy':
                     yi = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
-                    log_p1 = None
-                    log_p2 = None
                     loss = bceLoss(yi, torch.where(y1 == 0, 1, 0).type_as(yi))
                 elif args.model_name == 'intensive':
                     yi, log_p1, log_p2 = model(
@@ -226,7 +224,7 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
                 yi = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
                 print(y1, yi)
                 loss = bceLoss(yi, torch.where(y1 == 0, 1, 0).type_as(yi))
-                starts, ends = [[0 if yi > 0.5 else x for x in y1], [0 if yi > 0.5 else y for y in y2]]
+                starts, ends = [[0 if x > 0.5 else x for x in y1], [0 if y > 0.5 else y for y in y2]]
             elif model_name == 'intensive':
                 yi, log_p1, log_p2 = model(
                     cw_idxs, qw_idxs, cc_idxs, qc_idxs)
