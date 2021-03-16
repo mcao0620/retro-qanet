@@ -96,7 +96,7 @@ class SketchyReader(nn.Module):
                                                      out_channels=128)
 
         self.enc = layers.StackedEncoder(num_conv_blocks=4,
-                                         kernel_size=4,
+                                         kernel_size=7,
                                          dropout=drop_prob)     # embedding encoder layer
 
         self.att = layers.BiDAFAttention(hidden_size=128,
