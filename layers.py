@@ -418,18 +418,13 @@ class IntensiveOutput(nn.Module):
         super(IntensiveOutput, self).__init__()
         self.ifv = FV(hidden_size)
         # need to make these the size of M_i
-        w1 = torch.empty(hidden_size * 2)
-        w2 = torch.empty(hidden_size * 2)
-        lim = 3 / (2 * hidden_size)
-        nn.init.uniform_(w1, -math.sqrt(lim), math.sqrt(lim))
-        nn.init.uniform_(w2, -math.sqrt(lim), math.sqrt(lim))
-        self.Ws = nn.Parameter(w1)
-        self.We = nn.Parameter(w2)
+        self.Ws = nn.Linear(2 * hidden_size, 1, bias=False)
+        self.We = nn.Linear(2 * hidden_size, 1, bias=False)
 
     def forward(self, M_1, M_2, M_3, mask):
         y_i = self.ifv(M_1, M_2, M_3, mask)
-        logits_1 = torch.squeeze(torch.cat((M_1, M_2), dim=-1) @ self.Ws)
-        logits_2 = torch.squeeze(torch.cat((M_1, M_3), dim=-1) @ self.We)
+        logits_1 = self.Ws(torch.cat((M_1, M_2), dim=-1)).squeeze()
+        logits_2 = self.We(torch.cat((M_1, M_3), dim=-1)).squeeze()
 
         log_p1 = masked_softmax(logits_1, mask, dim=-1, log_softmax=True)
         log_p2 = masked_softmax(logits_2, mask, dim=-1, log_softmax=True)
