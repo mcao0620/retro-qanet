@@ -90,7 +90,10 @@ class QANet(nn.Module):
 
         hidden_size *= 2    # update hidden size for other layers due to char embeddings
 
-        self.resizer = layers.EmbeddingResizer(in_channels=hidden_size,
+        self.c_resizer = layers.EmbeddingResizer(in_channels=hidden_size,
+                                               out_channels=128)
+                    
+        self.q_resizer = layers.EmbeddingResizer(in_channels=hidden_size,
                                                out_channels=128)
 
         self.model_resizer = layers.EmbeddingResizer(in_channels=512,
@@ -129,14 +132,14 @@ class QANet(nn.Module):
 
         # c_mask_3d = torch.eq(cw_idxs, 1).float()
         # q_mask_3d = torch.eq(qw_idxs, 1).float()
-        
+
         # (batch_size, c_len, hidden_size)
         c_emb = self.emb(cw_idxs, cc_idxs)
         # (batch_size, q_len, hidden_size)
         q_emb = self.emb(qw_idxs, qc_idxs)
 
-        c_emb = self.resizer(c_emb)
-        q_emb = self.resizer(q_emb)
+        c_emb = self.c_resizer(c_emb)
+        q_emb = self.q_resizer(q_emb)
 
         c_enc = self.enc(c_emb, c_mask)    # (batch_size, c_len, 2 * hidden_size)
         q_enc = self.enc(q_emb, q_mask)    # (batch_size, q_len, 2 * hidden_size)

@@ -525,6 +525,10 @@ class QANetOutput(nn.Module):
         self.W1 = nn.Linear(2 * hidden_size, 1, bias=False)
         self.W2 = nn.Linear(2 * hidden_size, 1, bias=False)
 
+        nn.init.xavier_uniform_(self.W1.weight)
+        nn.init.xavier_uniform_(self.W2.weight)
+
+
     def forward(self, M_1, M_2, M_3, mask):
         begin = torch.cat([M_1, M_2], dim=2)
         begin = self.W1(begin)
