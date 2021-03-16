@@ -345,7 +345,7 @@ class EmbeddingResizer(nn.Module):
 
 class MultiheadAttentionLayer(nn.Module):
     
-    def __init__(self, hid_dim, num_heads):
+    def __init__(self, hid_dim, num_heads, device):
         
         super().__init__()
         self.num_heads = num_heads
@@ -421,7 +421,7 @@ class StackedEncoder(nn.Module):
     Args:
     """
 
-    def __init__(self, num_conv_blocks, kernel_size, num_heads=8, d_model=128, dropout=0.1):
+    def __init__(self, num_conv_blocks, kernel_size, num_heads=8, d_model=128, dropout=0.1, device):
 
         super(StackedEncoder, self).__init__()
         self.pos_encoder = PositionalEncoding(d_model, dropout)
@@ -433,7 +433,7 @@ class StackedEncoder(nn.Module):
         self.conv_norm = nn.ModuleList([nn.LayerNorm(d_model) for _ in range(num_conv_blocks)])
 
        # self.self_attn_block = nn.MultiheadAttention(d_model, num_heads, dropout)
-        self.self_attn_block = MultiheadAttentionLayer(d_model, num_heads)
+        self.self_attn_block = MultiheadAttentionLayer(d_model, num_heads, device)
         self.ffn_block = nn.Linear(d_model, d_model)
         self.ffn_norm = nn.LayerNorm(d_model)
 
