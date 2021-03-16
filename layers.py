@@ -302,10 +302,10 @@ class SelfAttentionBlock(nn.Module):
             d_model, num_heads, dropout)
         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, x):
+    def forward(self, x, mask):
         norm_out = self.norm(x)
         attn_output, attn_output_weights = self.self_attn_layer(
-            norm_out, norm_out, norm_out)
+            norm_out, norm_out, norm_out, attn_mask=mask)
 
         return self.dropout(x + attn_output)
 
@@ -377,7 +377,7 @@ class StackedEncoder(nn.Module):
 
         self.dropout = dropout
 
-    def forward(self, x):
+    def forward(self, x, mask):
         x = self.pos_encoder(x)
 
         for i, conv_block in enumerate(self.conv_blocks):
@@ -386,7 +386,7 @@ class StackedEncoder(nn.Module):
             if (i+1) % 2 == 0:
                 x = F.dropout(x, p=self.dropout)
 
-        x = self.self_attn_block(x)
+        x = self.self_attn_block(x, mask)
 
         return self.ffn_block(x)
 

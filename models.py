@@ -9,6 +9,7 @@ import torch
 import torch.nn as nn
 import util
 
+
 class BiDAF(nn.Module):
     """Baseline BiDAF model for SQuAD.
 
@@ -29,6 +30,7 @@ class BiDAF(nn.Module):
         hidden_size (int): Number of features in the hidden state at each layer.
         drop_prob (float): Dropout probability.
     """
+
     def __init__(self, word_vectors, hidden_size, drop_prob=0.):
         super(BiDAF, self).__init__()
         self.emb = layers.Embedding(word_vectors=word_vectors,
@@ -59,19 +61,20 @@ class BiDAF(nn.Module):
         c_emb = self.emb(cw_idxs)         # (batch_size, c_len, hidden_size)
         q_emb = self.emb(qw_idxs)         # (batch_size, q_len, hidden_size)
 
-        c_enc = self.enc(c_emb, c_len)    # (batch_size, c_len, 2 * hidden_size)
-        q_enc = self.enc(q_emb, q_len)    # (batch_size, q_len, 2 * hidden_size)
+        # (batch_size, c_len, 2 * hidden_size)
+        c_enc = self.enc(c_emb, c_len)
+        # (batch_size, q_len, 2 * hidden_size)
+        q_enc = self.enc(q_emb, q_len)
 
         att = self.att(c_enc, q_enc,
                        c_mask, q_mask)    # (batch_size, c_len, 8 * hidden_size)
 
-        mod = self.mod(att, c_len)        # (batch_size, c_len, 2 * hidden_size)
+        # (batch_size, c_len, 2 * hidden_size)
+        mod = self.mod(att, c_len)
 
         out = self.out(att, mod, c_mask)  # 2 tensors, each (batch_size, c_len)
 
         return out
-
-
 
 
 class SketchyReader(nn.Module):
@@ -86,15 +89,14 @@ class SketchyReader(nn.Module):
 
         hidden_size *= 2    # update hidden size for other layers due to char embeddings
 
-
         self.resizer = layers.EmbeddingResizer(in_channels=hidden_size,
                                                out_channels=128)
 
         self.model_resizer = layers.EmbeddingResizer(in_channels=512,
-                                               out_channels=128)
+                                                     out_channels=128)
 
-        self.enc = layers.StackedEncoder(num_conv_blocks=7,
-                                         kernel_size=7,
+        self.enc = layers.StackedEncoder(num_conv_blocks=4,
+                                         kernel_size=4,
                                          dropout=drop_prob)     # embedding encoder layer
 
         self.att = layers.BiDAFAttention(hidden_size=128,
@@ -112,23 +114,24 @@ class SketchyReader(nn.Module):
         #                                  kernel_size=7,
         #                                  dropout=drop_prob)     # model layer
         self.model_encoder_layers = nn.ModuleList([layers.StackedEncoder(num_conv_blocks=2,
-                                                                        kernel_size=7,
-                                                                        dropout=drop_prob) for _ in range(7)])
+                                                                         kernel_size=7,
+                                                                         dropout=drop_prob) for _ in range(7)])
 
         self.out = layers.SketchyOutput(hidden_size=128)     # output layer
-    
 
     def forward(self, cw_idxs, qw_idxs, cc_idxs, qc_idxs):
         c_mask = torch.zeros_like(cw_idxs) != cw_idxs
         q_mask = torch.zeros_like(qw_idxs) != qw_idxs
         c_len, q_len = c_mask.sum(-1), q_mask.sum(-1)
 
-        c_emb = self.emb(cw_idxs, cc_idxs)         # (batch_size, c_len, hidden_size)
-        q_emb = self.emb(qw_idxs, qc_idxs)         # (batch_size, q_len, hidden_size)
+        # (batch_size, c_len, hidden_size)
+        c_emb = self.emb(cw_idxs, cc_idxs)
+        # (batch_size, q_len, hidden_size)
+        q_emb = self.emb(qw_idxs, qc_idxs)
 
         c_emb = self.resizer(c_emb)
         q_emb = self.resizer(q_emb)
-        
+
         c_enc = self.enc(c_emb)    # (batch_size, c_len, 2 * hidden_size)
         q_enc = self.enc(q_emb)    # (batch_size, q_len, 2 * hidden_size)
 
@@ -140,18 +143,18 @@ class SketchyReader(nn.Module):
         mod1 = att
 
         for layer in self.model_encoder_layers:
-            mod1 = layer(mod1)
-        
+            mod1 = layer(mod1, c_mask)
+
         mod2 = mod1
 
         for layer in self.model_encoder_layers:
-            mod2 = layer(mod2)
-        
+            mod2 = layer(mod2, c_mask)
+
         mod3 = mod2
 
         for layer in self.model_encoder_layers:
-            mod3 = layer(mod3)
-        
+            mod3 = layer(mod3, c_mask)
+
         # mod1 = self.mod1(att)        # (batch_size, c_len, 2 * hidden_size)
         # mod2 = self.mod2(mod1)        # (batch_size, c_len, 2 * hidden_size)
         # mod3 = self.mod3(mod2)        # (batch_size, c_len, 2 * hidden_size)
@@ -161,10 +164,8 @@ class SketchyReader(nn.Module):
         return out
 
 
-
-
 class IntensiveReader(nn.Module):
-    
+
     def __init__(self, word_vectors, char_vectors, hidden_size, drop_prob=0.):
         super(IntensiveReader, self).__init__()
 
@@ -175,12 +176,11 @@ class IntensiveReader(nn.Module):
 
         hidden_size *= 2    # update hidden size for other layers due to char embeddings
 
-
         self.resizer = layers.EmbeddingResizer(in_channels=hidden_size,
                                                out_channels=128)
 
         self.model_resizer = layers.EmbeddingResizer(in_channels=512,
-                                               out_channels=128)
+                                                     out_channels=128)
 
         self.enc = layers.StackedEncoder(num_conv_blocks=4,
                                          kernel_size=7,
@@ -201,23 +201,24 @@ class IntensiveReader(nn.Module):
         #                                  kernel_size=7,
         #                                  dropout=drop_prob)     # model layer
         self.model_encoder_layers = nn.ModuleList([layers.StackedEncoder(num_conv_blocks=2,
-                                                                        kernel_size=7,
-                                                                        dropout=drop_prob) for _ in range(7)])
+                                                                         kernel_size=7,
+                                                                         dropout=drop_prob) for _ in range(7)])
 
         self.out = layers.IntensiveOutput(hidden_size=128)     # output layer
-    
 
     def forward(self, cw_idxs, qw_idxs, cc_idxs, qc_idxs):
         c_mask = torch.zeros_like(cw_idxs) != cw_idxs
         q_mask = torch.zeros_like(qw_idxs) != qw_idxs
         c_len, q_len = c_mask.sum(-1), q_mask.sum(-1)
 
-        c_emb = self.emb(cw_idxs, cc_idxs)         # (batch_size, c_len, hidden_size)
-        q_emb = self.emb(qw_idxs, qc_idxs)         # (batch_size, q_len, hidden_size)
+        # (batch_size, c_len, hidden_size)
+        c_emb = self.emb(cw_idxs, cc_idxs)
+        # (batch_size, q_len, hidden_size)
+        q_emb = self.emb(qw_idxs, qc_idxs)
 
         c_emb = self.resizer(c_emb)
         q_emb = self.resizer(q_emb)
-        
+
         c_enc = self.enc(c_emb)    # (batch_size, c_len, 2 * hidden_size)
         q_enc = self.enc(q_emb)    # (batch_size, q_len, 2 * hidden_size)
 
@@ -230,64 +231,60 @@ class IntensiveReader(nn.Module):
 
         for layer in self.model_encoder_layers:
             mod1 = layer(mod1)
-        
+
         mod2 = mod1
 
         for layer in self.model_encoder_layers:
             mod2 = layer(mod2)
-        
+
         mod3 = mod2
 
         for layer in self.model_encoder_layers:
             mod3 = layer(mod3)
-        
+
         # mod1 = self.mod1(att)        # (batch_size, c_len, 2 * hidden_size)
         # mod2 = self.mod2(mod1)        # (batch_size, c_len, 2 * hidden_size)
         # mod3 = self.mod3(mod2)        # (batch_size, c_len, 2 * hidden_size)
-
-
 
         out = self.out(mod1, mod2, mod3, c_mask)
 
         return out
 
 
-
-
 class RetroQANet(nn.Module):
 
     """Retro-Reader over QANet
-    
+
     """
 
     def __init__(self, word_vectors, char_vectors, hidden_size, intensive_path, sketchy_path, gpu_ids, drop_prob=0.):
         super(RetroQANet, self).__init__()
 
         self.sketchy = SketchyReader(word_vectors=word_vectors,
-                              char_vectors=char_vectors,
-                              hidden_size=hidden_size,
-                              drop_prob=drop_prob)
+                                     char_vectors=char_vectors,
+                                     hidden_size=hidden_size,
+                                     drop_prob=drop_prob)
         self.sketchy = nn.DataParallel(self.sketchy, gpu_ids)
         self.sketchy, _ = util.load_model(self.sketchy, sketchy_path, gpu_ids)
 
         self.intensive = IntensiveReader(word_vectors=word_vectors,
-                                char_vectors=char_vectors,
-                                hidden_size=hidden_size,
-                                drop_prob=drop_prob)
+                                         char_vectors=char_vectors,
+                                         hidden_size=hidden_size,
+                                         drop_prob=drop_prob)
         self.intensive = nn.DataParallel(self.intensive, gpu_ids)
-        self.intensive, _ = util.load_model(self.intensive, intensive_path, gpu_ids)
+        self.intensive, _ = util.load_model(
+            self.intensive, intensive_path, gpu_ids)
 
         self.RV_TAV = layers.RV_TAV()
-    
-                            
-        
+
     def forward(self, cw_idxs, qw_idxs, cc_idxs, qc_idxs):
         self.sketchy.eval()
         self.intensive.eval()
 
         yi_s = self.sketchy(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
-        yi_i, log_p1, log_p2 = self.intensive(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
-        out = self.RV_TAV(yi_s.to(device='cuda'), yi_i.to(device='cuda'), log_p1.to(device='cuda'), log_p2.to(device='cuda'))
+        yi_i, log_p1, log_p2 = self.intensive(
+            cw_idxs, qw_idxs, cc_idxs, qc_idxs)
+        out = self.RV_TAV(yi_s.to(device='cuda'), yi_i.to(
+            device='cuda'), log_p1.to(device='cuda'), log_p2.to(device='cuda'))
 
         return out
-
