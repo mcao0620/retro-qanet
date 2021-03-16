@@ -82,11 +82,11 @@ class BiDAF(nn.Module):
 
 class SketchyReader(nn.Module):
 
-    def __init__(self, word_vectors, char_vectors, hidden_size, device, drop_prob=0.):
+    def __init__(self, word_vectors, char_vectors, hidden_size, drop_prob=0.):
         super(SketchyReader, self).__init__()
-'''class QANet(nn.Module):
+        '''class QANet(nn.Module):
 
-    def __init__(self, word_vectors, char_vectors, hidden_size, device, drop_prob=0.):
+        def __init__(self, word_vectors, char_vectors, hidden_size, device, drop_prob=0.):
         super(QANet, self).__init__()
 
         self.device = device'''
@@ -109,8 +109,7 @@ class SketchyReader(nn.Module):
 
         self.enc = layers.StackedEncoder(num_conv_blocks=4,
                                          kernel_size=7,
-                                         dropout=drop_prob,
-                                         device=self.device)     # embedding encoder layer
+                                         dropout=drop_prob)     # embedding encoder layer
 
         self.att = layers.BiDAFAttention(hidden_size=128,
                                          drop_prob=drop_prob)     # context-query attention layer
@@ -128,7 +127,6 @@ class SketchyReader(nn.Module):
         #                                  dropout=drop_prob)     # model layer
         self.model_encoder_layers = nn.ModuleList([layers.StackedEncoder(num_conv_blocks=2,
                                                                          kernel_size=7,
-                                                                         device = self.device,
                                                                          dropout=drop_prob) for _ in range(7)])
 
         self.out = layers.SketchyOutput(hidden_size=128)     # output layer

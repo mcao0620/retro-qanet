@@ -293,7 +293,7 @@ class ConvBlock(nn.Module):
 
 class SelfAttentionBlock(nn.Module):
 
-     def __init__(self, d_model, num_heads, device, dropout=0.1):
+     def __init__(self, d_model, num_heads, dropout=0.1):
          super(SelfAttentionBlock,  self).__init__()
          self.norm = nn.LayerNorm(d_model)
          self.self_attn_layer = nn.MultiheadAttention(
@@ -313,7 +313,7 @@ def PosEncoder(x, min_timescale=1.0, max_timescale=1.0e4):
     length = x.size()[1]
     channels = x.size()[2]
     signal = get_timing_signal(length, channels, min_timescale, max_timescale)
-    return (x + signal.to(x.get_device())).transpose(1, 2)
+    return (x + signal).transpose(1, 2)
 
 
 def get_timing_signal(length, channels,
@@ -496,8 +496,8 @@ class StackedEncoder(nn.Module):
                                           for _ in range(num_conv_blocks)])
         self.conv_norm = nn.ModuleList([nn.LayerNorm(d_model) for _ in range(num_conv_blocks)])
 
-        self.self_attn_block =  MultiheadAttentionLayer(d_model, num_heads, device, dropout=dropout)
-        self.ffn_block = FFNBlock(d_model)
+        self.self_attn_block =  nn.MultiheadAttention(d_model, num_heads, dropout)
+        #self.ffn_block = FFNBlock(d_model)
 
         self.ffn_block = nn.Linear(d_model, d_model)
         self.ffn_norm = nn.LayerNorm(d_model)
@@ -538,7 +538,9 @@ class StackedEncoder(nn.Module):
             res = x
             x = self.conv_norm[i](x)
 
-        x = self.self_attn_block(x, mask)
+        x = x.permute(1,0,2)
+        x, attn_output_weights = self.self_attn_block(x, x, x, key_padding_mask=mask)
+        x = x.permute(1,0,2)
         x = F.dropout(x + res, p=self.dropout)
         res = x
         
@@ -590,7 +592,7 @@ class FV(nn.Module):
 
         sq1 = masked_softmax(torch.squeeze(M_X), mask, log_softmax=True)
 
-        y_i = sq1
+        y_i = sq1[:, 0].squeeze()
 
         return y_i
 
@@ -612,7 +614,7 @@ class IntensiveOutput(nn.Module):
         nn.init.xavier_uniform_(self.We.weight)
 
     def forward(self, M_1, M_2, M_3, mask):
-        
+
         y_i = self.ifv(M_1, M_2, M_3, mask)
 
         logits_1 = self.Ws(torch.cat((M_1, M_2), dim=-1)).squeeze()
@@ -656,8 +658,6 @@ class RV_TAV(nn.Module):
         self.lam = nn.Parameter(torch.tensor([0.5]))
 
     def forward(self, sketchy_prediction, intensive_prediction, log_p1, log_p2, max_len=15, use_squad_v2=True):
-        sketchy_prediction = sketchy_prediction.squeeze()
-        intensive_prediction = intensive_prediction.squeeze()
         s_in = log_p1.exp()
         e_in = log_p2.exp()
         starts, ends = discretize(
