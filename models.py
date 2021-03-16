@@ -107,17 +107,6 @@ class QANet(nn.Module):
         self.att = layers.BiDAFAttention(hidden_size=128,
                                          drop_prob=drop_prob)     # context-query attention layer
 
-        # self.mod1 = layers.StackedEncoder(num_conv_blocks=2,
-        #                                  kernel_size=7,
-        #                                  dropout=drop_prob)     # model layer
-
-        # self.mod2 = layers.StackedEncoder(num_conv_blocks=2,
-        #                                  kernel_size=7,
-        #                                  dropout=drop_prob)     # model layer
-
-        # self.mod3 = layers.StackedEncoder(num_conv_blocks=2,
-        #                                  kernel_size=7,
-        #                                  dropout=drop_prob)     # model layer
         self.model_encoder_layers = nn.ModuleList([layers.StackedEncoder(num_conv_blocks=2,
                                                                          kernel_size=7,
                                                                          dropout=drop_prob,
@@ -163,11 +152,7 @@ class QANet(nn.Module):
 
         for layer in self.model_encoder_layers:
             mod3 = layer(mod3, c_mask)
-
-        # mod1 = self.mod1(att)        # (batch_size, c_len, 2 * hidden_size)
-        # mod2 = self.mod2(mod1)        # (batch_size, c_len, 2 * hidden_size)
-        # mod3 = self.mod3(mod2)        # (batch_size, c_len, 2 * hidden_size)
-
+            
         out = self.out(mod1, mod2, mod3, c_mask)
 
         return out
