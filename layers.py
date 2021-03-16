@@ -384,7 +384,7 @@ class StackedEncoder(nn.Module):
             x = conv_block(x)
 
             if (i+1) % 2 == 0:
-                x = F.dropout(x, p=dropout)
+                x = F.dropout(x, p=self.dropout)
 
         x = self.self_attn_block(x)
 
