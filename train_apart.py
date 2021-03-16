@@ -222,7 +222,6 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
             y1, y2 = y1.to(device), y2.to(device)
             if model_name == 'sketchy':
                 yi = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
-                print(y1, yi)
                 loss = bceLoss(yi, torch.where(y1 == 0, 1, 0).type_as(yi))
                 starts, ends = [[0 if x > 0.5 else x for x in y1], [0 if y > 0.5 else y for y in y2]]
             elif model_name == 'intensive':
