@@ -8,6 +8,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import math
 
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from util import masked_softmax
@@ -26,15 +27,13 @@ class Embedding(nn.Module):
         hidden_size (int): Size of hidden activations.
         drop_prob (float): Probability of zero-ing out activations
     """
-
     def __init__(self, word_vectors, char_vectors, hidden_size, drop_prob):
         super(Embedding, self).__init__()
-        self.drop_prob = drop_prob
         self.hidden_size = hidden_size
+        self.drop_prob = drop_prob
         self.word_embed = nn.Embedding.from_pretrained(word_vectors)
         self.char_embed = nn.Embedding.from_pretrained(char_vectors)
-        self.cnn = nn.Conv1d(char_vectors.size(
-            1), hidden_size, kernel_size=5, bias=True)
+        self.cnn = nn.Conv1d(char_vectors.size(1), hidden_size, kernel_size=5, bias=True)
         self.proj = nn.Linear(word_vectors.size(1), hidden_size, bias=False)
         self.hwy = HighwayEncoder(2, 2 * hidden_size)
 
@@ -42,22 +41,23 @@ class Embedding(nn.Module):
         batch_size, sent_len, word_len = c.size()
 
         c = self.char_embed(c.view(-1, word_len))
-        c = F.dropout(c, self.drop_prob, self.training)  # apply dropout
-
-        c_emb = self.cnn(c.permute(0, 2, 1))  # Conv1D Layer
-        c_emb = torch.max(F.relu(c_emb), dim=-1)[0]  # Maxpool
-        c_emb = c_emb.view(batch_size, sent_len, self.hidden_size)
+        c = F.dropout(c, self.drop_prob, self.training) # apply dropout
+        
+        c_emb = self.cnn(c.permute(0, 2, 1)) # Conv1D Layer
+        c_emb = torch.max(F.relu(c_emb), dim=-1)[0] # Maxpool
+        c_emb = c_emb.view(batch_size, sent_len, self.hidden_size) 
 
         w_emb = self.word_embed(w)   # (batch_size, seq_len, embed_size)
         w_emb = F.dropout(w_emb, self.drop_prob, self.training)
         w_emb = self.proj(w_emb)  # (batch_size, seq_len, hidden_size)
-
-        # concatenate word and char embeddings
-        emb = torch.cat((c_emb, w_emb), dim=-1)
+ 
+        emb = torch.cat((c_emb, w_emb), dim=-1) # concatenate word and char embeddings
 
         emb = self.hwy(emb)   # (batch_size, seq_len, 2 * hidden_size)
 
         return emb
+
+
 
 
 class HighwayEncoder(nn.Module):
@@ -214,13 +214,11 @@ class BiDAFAttention(nn.Module):
 
 class BiDAFOutput(nn.Module):
     """Output layer used by BiDAF for question answering.
-
     Computes a linear transformation of the attention and modeling
     outputs, then takes the softmax of the result to get the start pointer.
     A bidirectional LSTM is then applied the modeling output to produce `mod_2`.
     A second linear+softmax of the attention output and `mod_2` is used
     to get the end pointer.
-
     Args:
         hidden_size (int): Hidden size used in the BiDAF model.
         drop_prob (float): Probability of zero-ing out activations.
@@ -275,65 +273,119 @@ class ConvBlock(nn.Module):
         out = self.depthwise(x)
         out = self.pointwise(out)
 
-        return torch.transpose(F.relu(out) + x, 1, 2)
+        return torch.transpose(F.relu(out), 1, 2)
 
 
-class FFNBlock(nn.Module):
+# class FFNBlock(nn.Module):
 
-    def __init__(self, d_model, dropout=0.1, hidden_size=8):
-        super(FFNBlock, self).__init__()
-        self.norm = nn.LayerNorm(d_model)
-        self.ffn_layer = nn.Linear(d_model, d_model, bias=True)
-        self.dropout_layer = nn.Dropout(dropout)
+#     def __init__(self, d_model, dropout=0.1, hidden_size=8):
+#         super(FFNBlock, self).__init__()
+#         self.norm = nn.LayerNorm(d_model)
+#         self.ffn_layer = nn.Linear(d_model, d_model, bias=True)
+#         self.dropout_layer = nn.Dropout(dropout)
 
-    def forward(self, x):
-        norm_out = self.norm(x)
-        ffn_layer_out = self.ffn_layer(norm_out)
+#     def forward(self, x):
+#         norm_out = self.norm(x)
+#         ffn_layer_out = self.ffn_layer(norm_out)
 
-        return self.dropout_layer(F.relu(x) + ffn_layer_out)
+#         return self.dropout_layer(F.relu(x) + ffn_layer_out)
 
 
 class SelfAttentionBlock(nn.Module):
 
-    def __init__(self, d_model, num_heads, dropout=0.1):
-        super(SelfAttentionBlock,  self).__init__()
-        self.norm = nn.LayerNorm(d_model)
-        self.self_attn_layer = nn.MultiheadAttention(
-            d_model, num_heads, dropout)
-        self.dropout = nn.Dropout(dropout)
+     def __init__(self, d_model, num_heads, dropout=0.1):
+         super(SelfAttentionBlock,  self).__init__()
+         self.norm = nn.LayerNorm(d_model)
+         self.self_attn_layer = nn.MultiheadAttention(
+             d_model, num_heads, dropout)
+         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, x, mask):
-        norm_out = self.norm(x).permute(1,0,2)
-        attn_output, attn_output_weights = self.self_attn_layer(
-            norm_out, norm_out, norm_out, key_padding_mask=~mask)
-        return self.dropout(x + attn_output.permute(1,0,2))
+     def forward(self, x):
+         norm_out = self.norm(x)
+         attn_output, attn_output_weights = self.self_attn_layer(
+             norm_out, norm_out, norm_out)
+
+         return self.dropout(x + attn_output)
+
+def PosEncoder(x, min_timescale=1.0, max_timescale=1.0e4):
+    x = x.transpose(1, 2)
+    length = x.size()[1]
+    channels = x.size()[2]
+    signal = get_timing_signal(length, channels, min_timescale, max_timescale)
+    return (x + signal.to(x.get_device())).transpose(1, 2)
 
 
-class PositionalEncoding(nn.Module):
-    """ Position Encoder which injects positional structure and information of to the input sequence.
-    This particular implementation was derived from the one implemented on the pytorch transformer in the pytorch documentation(https://pytorch.org/tutorials/beginner/transformer_tutorial.html#define-the-model)
-    Args:
-        d_model () :
-        dropout () :
-        max_len () :
-    """
+def get_timing_signal(length, channels,
+                      min_timescale=1.0, max_timescale=1.0e4):
+    position = torch.arange(length).type(torch.float32)
+    num_timescales = channels // 2
+    log_timescale_increment = (math.log(float(max_timescale) / float(min_timescale)) / (float(num_timescales) - 1))
+    inv_timescales = min_timescale * torch.exp(
+            torch.arange(num_timescales).type(torch.float32) * -log_timescale_increment)
+    scaled_time = position.unsqueeze(1) * inv_timescales.unsqueeze(0)
+    signal = torch.cat([torch.sin(scaled_time), torch.cos(scaled_time)], dim = 1)
+    m = nn.ZeroPad2d((0, (channels % 2), 0, 0))
+    signal = m(signal)
+    signal = signal.view(1, length, channels)
+    return signal
 
-    def __init__(self, d_model, dropout=0.1, max_len=5000):
-        super(PositionalEncoding, self).__init__()
-        self.dropout = nn.Dropout(p=dropout)
+# class PositionalEncoding(nn.Module):
+    
+#     def __init__(self, model_dim, dropout, device, max_length=400):
+        
+#         super(PositionalEncoding, self).__init__()
+        
+#         self.device = device
+        
+#         self.model_dim = model_dim
+        
+#         pos_encoding = torch.zeros(max_length, model_dim)
+        
+#         for pos in range(max_length):
+            
+#             for i in range(0, model_dim, 2):
+                
+#                 pos_encoding[pos, i] = math.sin(pos / (10000 ** ((2*i)/model_dim)))
+#                 pos_encoding[pos, i+1] = math.cos(pos / (10000 ** ((2*(i+1))/model_dim)))
+            
+        
+#         pos_encoding = pos_encoding.unsqueeze(0).to(device)
+#         self.register_buffer('pos_encoding', pos_encoding)
+        
+    
+#     def forward(self, x):
+#         #print("PE shape: ", self.pos_encoding.shape)
+#         #print("PE input: ", x.shape)
+#         x = x + torch.autograd.Variable(self.pos_encoding[:, :x.shape[1]], requires_grad=False)
+#         #print("PE output: ", x.shape)
+#         return x
 
-        pe = torch.zeros(max_len, d_model)
-        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
-        div_term = torch.exp(torch.arange(
-            0, d_model, 2).float() * (-math.log(10000.0) / d_model))
-        pe[:, 0::2] = torch.sin(position * div_term)
-        pe[:, 1::2] = torch.cos(position * div_term)
-        pe = pe.unsqueeze(0).transpose(0, 1)
-        self.register_buffer('pe', pe)
 
-    def forward(self, x):
-        x = x + self.pe[:x.size(0), :]
-        return self.dropout(x)
+# class PositionalEncoding(nn.Module):
+#     """ Position Encoder which injects positional structure and information of to the input sequence.
+#     This particular implementation was derived from the one implemented on the pytorch transformer in the pytorch documentation(https://pytorch.org/tutorials/beginner/transformer_tutorial.html#define-the-model)
+#     Args:
+#         d_model () :
+#         dropout () :
+#         max_len () :
+#     """
+
+#     def __init__(self, d_model, dropout=0.1, max_len=5000):
+#         super(PositionalEncoding, self).__init__()
+#         self.dropout = nn.Dropout(p=dropout)
+
+#         pe = torch.zeros(max_len, d_model)
+#         position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
+#         div_term = torch.exp(torch.arange(
+#             0, d_model, 2).float() * (-math.log(10000.0) / d_model))
+#         pe[:, 0::2] = torch.sin(position * div_term)
+#         pe[:, 1::2] = torch.cos(position * div_term)
+#         pe = pe.unsqueeze(0).transpose(0, 1)
+#         self.register_buffer('pe', pe)
+
+#     def forward(self, x):
+#         x = x + self.pe[:x.size(0), :]
+#         return self.dropout(x)
 
 
 class EmbeddingResizer(nn.Module):
@@ -355,29 +407,108 @@ class EmbeddingResizer(nn.Module):
         x = torch.transpose(x, 1, 2)
         return torch.transpose(self.out(x), 1, 2)
 
-
+'''class MultiheadAttentionLayer(nn.Module):
+    
+    def __init__(self, hid_dim, num_heads, device):
+        
+        super().__init__()
+        self.num_heads = num_heads
+        self.hid_dim = hid_dim
+        
+        self.head_dim = self.hid_dim // self.num_heads
+        
+        self.fc_q = nn.Linear(hid_dim, hid_dim)
+        
+        self.fc_k = nn.Linear(hid_dim, hid_dim)
+        
+        self.fc_v = nn.Linear(hid_dim, hid_dim)
+        
+        self.fc_o = nn.Linear(hid_dim, hid_dim)
+        
+        self.scale = torch.sqrt(torch.FloatTensor([self.head_dim])).to(device)
+        
+        
+    def forward(self, x, mask):
+        # x = [bs, len_x, hid_dim]
+        # mask = [bs, len_x]
+        
+        batch_size = x.shape[0]
+        
+        Q = self.fc_q(x)
+        K = self.fc_k(x)
+        V = self.fc_v(x)
+        # Q = K = V = [bs, len_x, hid_dim]
+        
+        Q = Q.view(batch_size, -1, self.num_heads, self.head_dim).permute(0,2,1,3)
+        K = K.view(batch_size, -1, self.num_heads, self.head_dim).permute(0,2,1,3)
+        V = V.view(batch_size, -1, self.num_heads, self.head_dim).permute(0,2,1,3)
+        # [bs, len_x, num_heads, head_dim ]  => [bs, num_heads, len_x, head_dim]
+        
+        K = K.permute(0,1,3,2)
+        # [bs, num_heads, head_dim, len_x]
+        
+        energy = torch.matmul(Q, K) / self.scale
+        # (bs, num_heads){[len_x, head_dim] * [head_dim, len_x]} => [bs, num_heads, len_x, len_x]
+        
+        mask = mask.unsqueeze(1).unsqueeze(2)
+        # [bs, 1, 1, len_x]
+        
+        #print("Mask: ", mask)
+        #print("Energy: ", energy)
+        
+        energy = energy.masked_fill(mask == 1, -1e10)
+        
+        #print("energy after masking: ", energy)
+        
+        alpha = torch.softmax(energy, dim=-1)
+        #  [bs, num_heads, len_x, len_x]
+        
+        #print("energy after smax: ", alpha)
+        alpha = F.dropout(alpha, p=0.1)
+        
+        a = torch.matmul(alpha, V)
+        # [bs, num_heads, len_x, head_dim]
+        
+        a = a.permute(0,2,1,3)
+        # [bs, len_x, num_heads, hid_dim]
+        
+        a = a.contiguous().view(batch_size, -1, self.hid_dim)
+        # [bs, len_x, hid_dim]
+        
+        a = self.fc_o(a)
+        # [bs, len_x, hid_dim]
+        
+        #print("Multihead output: ", a.shape)
+        return a'''
 class StackedEncoder(nn.Module):
     """ Base module for the Embedding and Model Encoder used in QANet.
     Args:
     """
 
-    def __init__(self, num_conv_blocks, kernel_size, num_heads=8, d_model=128, dropout=0.1):
+    def __init__(self, num_conv_blocks, kernel_size, num_heads=4, d_model=128, dropout=0.1, device="cuda:0"):
 
         super(StackedEncoder, self).__init__()
-        self.pos_encoder = PositionalEncoding(d_model, dropout)
+        #self.pos_encoder = PositionalEncoding(d_model, dropout, device)
+        self.pos_norm = nn.LayerNorm(d_model)
 
         self.conv_blocks = nn.ModuleList([ConvBlock(d_model, d_model, kernel_size)
                                           for _ in range(num_conv_blocks)])
 
         self.self_attn_block = SelfAttentionBlock(d_model, num_heads, dropout)
         self.ffn_block = FFNBlock(d_model)
+        '''self.conv_norm = nn.ModuleList([nn.LayerNorm(d_model) for _ in range(num_conv_blocks)])
+
+       # self.self_attn_block = nn.MultiheadAttention(d_model, num_heads, dropout)
+        self.self_attn_block = MultiheadAttentionLayer(d_model, num_heads, device)
+        self.ffn_block = nn.Linear(d_model, d_model)
+        self.ffn_norm = nn.LayerNorm(d_model)'''
 
         self.num_conv_blocks = num_conv_blocks
 
         self.dropout = dropout
 
     def forward(self, x, mask):
-        x = self.pos_encoder(x)
+        '''x = self.pos_encoder(x)
 
         for i, conv_block in enumerate(self.conv_blocks):
             x = conv_block(x)
@@ -387,8 +518,54 @@ class StackedEncoder(nn.Module):
 
         x = self.self_attn_block(x, mask)
 
-        return self.ffn_block(x)
+        return self.ffn_block(x)'''
 
+        x = PosEncoder(x)
+        res = x
+        x = self.pos_norm(x)
+
+        for i, conv_block in enumerate(self.conv_blocks):
+            x = conv_block(x)
+            x = x + res
+
+            if (i+1) % 2 == 0:
+                x = F.dropout(x, p=self.dropout)
+            res = x
+            x = self.conv_norm[i](x)
+
+        x = self.self_attn_block(x, mask)
+        x = F.dropout(x + res, p=self.dropout)
+        res = x
+        
+        x = self.ffn_norm(x)
+        x = F.relu(self.ffn_block(x))
+        x = F.dropout(x + res, p=self.dropout)
+
+        return x
+
+
+class QANetOutput(nn.Module):
+    def __init__(self, hidden_size):
+        super(QANetOutput, self).__init__()
+
+        self.W1 = nn.Linear(2 * hidden_size, 1, bias=False)
+        self.W2 = nn.Linear(2 * hidden_size, 1, bias=False)
+
+        nn.init.xavier_uniform_(self.W1.weight)
+        nn.init.xavier_uniform_(self.W2.weight)
+
+
+    def forward(self, M_1, M_2, M_3, mask):
+        begin = torch.cat([M_1, M_2], dim=2)
+        begin = self.W1(begin)
+        
+        end = torch.cat([M_1, M_3], dim=2)
+        end = self.W2(end)
+
+        log_p1 = masked_softmax(begin.squeeze(), mask, log_softmax=True)
+        log_p2 = masked_softmax(end.squeeze(), mask, log_softmax=True)
+
+        return log_p1, log_p2
 
 class FV(nn.Module):
     """Front Verification layer utilized as part of Retrospective reader

@@ -18,6 +18,7 @@ from args import get_train_args
 from collections import OrderedDict
 from json import dumps
 from models import BiDAF
+from models import QANet
 from tensorboardX import SummaryWriter
 from tqdm import tqdm
 from ujson import load as json_load
@@ -48,11 +49,15 @@ def main(args):
 
     # Get Sketchy model
     log.info('Building model...')
-    sketchy_model = #QANET SKETCHY MODEL INTITIATION
-    sketchy_model = nn.DataParallel(sketchy_model, args.sketchy_gpu_ids)
-    if args.load_path_s:
-        log.info(f'Loading checkpoint from {args.load_path_s}...')
-        sketchy_model, sketchy_step = util.load_model(sketchy_model, args.load_path_s, args.sketchy_gpu_ids)
+    model = QANet(word_vectors=word_vectors,
+                  char_vectors=char_vectors,
+                  hidden_size=args.hidden_size,
+                  device=device,
+                  drop_prob=args.drop_prob)
+    model = nn.DataParallel(model, args.gpu_ids)
+    if args.load_path:
+        log.info(f'Loading checkpoint from {args.load_path}...')
+        model, step = util.load_model(model, args.load_path, args.gpu_ids)
     else:
         sketchy_step = 0
     sketchy_model = sketchy_model.to(sketchy_device)
@@ -145,12 +150,14 @@ def main(args):
                 # Setup for forward
                 cw_idxs = cw_idxs.to(device)
                 qw_idxs = qw_idxs.to(device)
-                cc_idxs = cc_idxs.to(device)
-                qc_idxs = qc_idxs.tto(device)
+                cc_idxs = cc_idxs.to(device) 
+                qc_idxs = qc_idxs.to(device)
+
                 batch_size = cw_idxs.size(0)
                 optimizer.zero_grad()
 
                 # Forward
+                log_p1, log_p2 = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
                 y1, y2 = y1.to(device), y2.to(device)
 
                 if model_name == 'sketchy':
@@ -260,11 +267,13 @@ def evaluate(model_name, model, data_loader, device, eval_file, max_len, use_squ
             # Setup for forward
             cw_idxs = cw_idxs.to(device)
             qw_idxs = qw_idxs.to(device)
-            cc_idxs = cc_idxs.to(device)
+            cc_idxs = cc_idxs.to(device) 
             qc_idxs = qc_idxs.to(device)
+
             batch_size = cw_idxs.size(0)
 
             # Forward
+            log_p1, log_p2 = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
             y1, y2 = y1.to(device), y2.to(device)
             bceLoss = nn.BCEWithLogitsLoss()
             ceLoss = nn.CrossEntropyLoss()
