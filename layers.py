@@ -265,36 +265,36 @@ class ConvBlock(nn.Module):
         return torch.transpose(F.relu(out) + x, 1, 2)
 
 
-class FFNBlock(nn.Module):
+# class FFNBlock(nn.Module):
 
-    def __init__(self, d_model, dropout=0.1, hidden_size=8):
-        super(FFNBlock, self).__init__()
-        self.norm = nn.LayerNorm(d_model)
-        self.ffn_layer = nn.Linear(d_model, d_model, bias=True)
-        self.dropout_layer = nn.Dropout(dropout)
+#     def __init__(self, d_model, dropout=0.1, hidden_size=8):
+#         super(FFNBlock, self).__init__()
+#         self.norm = nn.LayerNorm(d_model)
+#         self.ffn_layer = nn.Linear(d_model, d_model, bias=True)
+#         self.dropout_layer = nn.Dropout(dropout)
 
-    def forward(self, x):
-        norm_out = self.norm(x)
-        ffn_layer_out = self.ffn_layer(norm_out)
+#     def forward(self, x):
+#         norm_out = self.norm(x)
+#         ffn_layer_out = self.ffn_layer(norm_out)
 
-        return self.dropout_layer(F.relu(x) + ffn_layer_out)
+#         return self.dropout_layer(F.relu(x) + ffn_layer_out)
 
 
-class SelfAttentionBlock(nn.Module):
+# class SelfAttentionBlock(nn.Module):
 
-    def __init__(self, d_model, num_heads, dropout=0.1):
-        super(SelfAttentionBlock,  self).__init__()
-        self.norm = nn.LayerNorm(d_model)
-        self.self_attn_layer = nn.MultiheadAttention(
-            d_model, num_heads, dropout)
-        self.dropout = nn.Dropout(dropout)
+#     def __init__(self, d_model, num_heads, dropout=0.1):
+#         super(SelfAttentionBlock,  self).__init__()
+#         self.norm = nn.LayerNorm(d_model)
+#         self.self_attn_layer = nn.MultiheadAttention(
+#             d_model, num_heads, dropout)
+#         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, x):
-        norm_out = self.norm(x)
-        attn_output, attn_output_weights = self.self_attn_layer(
-            norm_out, norm_out, norm_out)
+#     def forward(self, x):
+#         norm_out = self.norm(x)
+#         attn_output, attn_output_weights = self.self_attn_layer(
+#             norm_out, norm_out, norm_out)
 
-        return self.dropout(x + attn_output)
+#         return self.dropout(x + attn_output)
 
 
 class PositionalEncoding(nn.Module):
@@ -343,7 +343,79 @@ class EmbeddingResizer(nn.Module):
         x = torch.transpose(x, 1, 2)
         return torch.transpose(self.out(x), 1, 2)
 
-
+class MultiheadAttentionLayer(nn.Module):
+    
+    def __init__(self, hid_dim, num_heads):
+        
+        super().__init__()
+        self.num_heads = num_heads
+        self.hid_dim = hid_dim
+        
+        self.head_dim = self.hid_dim // self.num_heads
+        
+        self.fc_q = nn.Linear(hid_dim, hid_dim)
+        
+        self.fc_k = nn.Linear(hid_dim, hid_dim)
+        
+        self.fc_v = nn.Linear(hid_dim, hid_dim)
+        
+        self.fc_o = nn.Linear(hid_dim, hid_dim)
+        
+        self.scale = torch.sqrt(torch.FloatTensor([self.head_dim]))
+        
+        
+    def forward(self, x, mask):
+        # x = [bs, len_x, hid_dim]
+        # mask = [bs, len_x]
+        
+        batch_size = x.shape[0]
+        
+        Q = self.fc_q(x)
+        K = self.fc_k(x)
+        V = self.fc_v(x)
+        # Q = K = V = [bs, len_x, hid_dim]
+        
+        Q = Q.view(batch_size, -1, self.num_heads, self.head_dim).permute(0,2,1,3)
+        K = K.view(batch_size, -1, self.num_heads, self.head_dim).permute(0,2,1,3)
+        V = V.view(batch_size, -1, self.num_heads, self.head_dim).permute(0,2,1,3)
+        # [bs, len_x, num_heads, head_dim ]  => [bs, num_heads, len_x, head_dim]
+        
+        K = K.permute(0,1,3,2)
+        # [bs, num_heads, head_dim, len_x]
+        
+        energy = torch.matmul(Q, K) / self.scale
+        # (bs, num_heads){[len_x, head_dim] * [head_dim, len_x]} => [bs, num_heads, len_x, len_x]
+        
+        mask = mask.unsqueeze(1).unsqueeze(2)
+        # [bs, 1, 1, len_x]
+        
+        #print("Mask: ", mask)
+        #print("Energy: ", energy)
+        
+        energy = energy.masked_fill(mask == 1, -1e10)
+        
+        #print("energy after masking: ", energy)
+        
+        alpha = torch.softmax(energy, dim=-1)
+        #  [bs, num_heads, len_x, len_x]
+        
+        #print("energy after smax: ", alpha)
+        alpha = F.dropout(alpha, p=0.1)
+        
+        a = torch.matmul(alpha, V)
+        # [bs, num_heads, len_x, head_dim]
+        
+        a = a.permute(0,2,1,3)
+        # [bs, len_x, num_heads, hid_dim]
+        
+        a = a.contiguous().view(batch_size, -1, self.hid_dim)
+        # [bs, len_x, hid_dim]
+        
+        a = self.fc_o(a)
+        # [bs, len_x, hid_dim]
+        
+        #print("Multihead output: ", a.shape)
+        return a
 class StackedEncoder(nn.Module):
     """ Base module for the Embedding and Model Encoder used in QANet.
     Args:
@@ -353,29 +425,45 @@ class StackedEncoder(nn.Module):
 
         super(StackedEncoder, self).__init__()
         self.pos_encoder = PositionalEncoding(d_model, dropout)
+        self.pos_norm = nn.LayerNorm(d_model)
 
         self.conv_blocks = nn.ModuleList([ConvBlock(d_model, d_model, kernel_size)
                                           for _ in range(num_conv_blocks)])
 
-        self.self_attn_block = SelfAttentionBlock(d_model, num_heads, dropout)
-        self.ffn_block = FFNBlock(d_model)
+        self.conv_norm = nn.ModuleList([nn.LayerNorm(d_model) for _ in range(num_conv_blocks)])
+
+       # self.self_attn_block = nn.MultiheadAttention(d_model, num_heads, dropout)
+        self.self_attn_block = MultiheadAttentionLayer(d_model, num_heads)
+        self.ffn_block = nn.Linear(d_model, d_model)
+        self.ffn_norm = nn.LayerNorm(d_model)
 
         self.num_conv_blocks = num_conv_blocks
 
         self.dropout = dropout
 
-    def forward(self, x):
+    def forward(self, x, mask):
         x = self.pos_encoder(x)
+        res = x
+        x = self.pos_norm(x)
 
         for i, conv_block in enumerate(self.conv_blocks):
-            x = conv_block(x)
+            x = F.relu(conv_block(x))
+            x = x + res
 
             if (i+1) % 2 == 0:
                 x = F.dropout(x, p=self.dropout)
+            res = x
+            x = self.conv_norm[i](x)
 
-        x = self.self_attn_block(x)
+        x = self.self_attn_block(x, mask)
+        x = F.dropout(x + res, p=self.dropout)
+        res = x
+        
+        x = self.ffn_norm(x)
+        x = F.relu(self.ffn_block(x))
+        x = F.dropout(x + res, p=self.dropout)
 
-        return self.ffn_block(x)
+        return x
 
 
 class QANetOutput(nn.Module):

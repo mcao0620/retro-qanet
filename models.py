@@ -123,6 +123,11 @@ class QANet(nn.Module):
         q_mask = torch.zeros_like(qw_idxs) != qw_idxs
         c_len, q_len = c_mask.sum(-1), q_mask.sum(-1)
 
+        # c_mask_3d = torch.eq(cw_idxs, 1).float()
+        # q_mask_3d = torch.eq(qw_idxs, 1).float()
+
+        print(c_mask.shape)
+
         # (batch_size, c_len, hidden_size)
         c_emb = self.emb(cw_idxs, cc_idxs)
         # (batch_size, q_len, hidden_size)
@@ -131,8 +136,8 @@ class QANet(nn.Module):
         c_emb = self.resizer(c_emb)
         q_emb = self.resizer(q_emb)
 
-        c_enc = self.enc(c_emb)    # (batch_size, c_len, 2 * hidden_size)
-        q_enc = self.enc(q_emb)    # (batch_size, q_len, 2 * hidden_size)
+        c_enc = self.enc(c_emb, c_mask)    # (batch_size, c_len, 2 * hidden_size)
+        q_enc = self.enc(q_emb, q_mask)    # (batch_size, q_len, 2 * hidden_size)
 
         att = self.att(c_enc, q_enc,
                        c_mask, q_mask)    # (batch_size, c_len, 8 * hidden_size)
@@ -142,17 +147,17 @@ class QANet(nn.Module):
         mod1 = att
 
         for layer in self.model_encoder_layers:
-            mod1 = layer(mod1)
+            mod1 = layer(mod1, c_mask)
 
         mod2 = mod1
 
         for layer in self.model_encoder_layers:
-            mod2 = layer(mod2)
+            mod2 = layer(mod2, c_mask)
 
         mod3 = mod2
 
         for layer in self.model_encoder_layers:
-            mod3 = layer(mod3)
+            mod3 = layer(mod3, c_mask)
 
         # mod1 = self.mod1(att)        # (batch_size, c_len, 2 * hidden_size)
         # mod2 = self.mod2(mod1)        # (batch_size, c_len, 2 * hidden_size)
