@@ -132,8 +132,10 @@ class SketchyReader(nn.Module):
         c_emb = self.resizer(c_emb)
         q_emb = self.resizer(q_emb)
 
-        c_enc = self.enc(c_emb)    # (batch_size, c_len, 2 * hidden_size)
-        q_enc = self.enc(q_emb)    # (batch_size, q_len, 2 * hidden_size)
+        # (batch_size, c_len, 2 * hidden_size)
+        c_enc = self.enc(c_emb, c_mask)
+        # (batch_size, q_len, 2 * hidden_size)
+        q_enc = self.enc(q_emb, q_mask)
 
         att = self.att(c_enc, q_enc,
                        c_mask, q_mask)    # (batch_size, c_len, 8 * hidden_size)
