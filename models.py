@@ -93,7 +93,7 @@ class SketchyReader(nn.Module):
         self.model_resizer = layers.EmbeddingResizer(in_channels=512,
                                                out_channels=128)
 
-        self.enc = layers.StackedEncoder(num_conv_blocks=7,
+        self.enc = layers.StackedEncoder(num_conv_blocks=4,
                                          kernel_size=7,
                                          dropout=drop_prob)     # embedding encoder layer
 
