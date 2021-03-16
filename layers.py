@@ -265,10 +265,10 @@ class ConvBlock(nn.Module):
         self.pointwise = nn.Conv1d(
             in_channels, out_channels, kernel_size=1, padding=0, bias=bias)
 
-        nn.init.kaiming_normal_(self.depthwise.weight)
-        nn.init.constant_(self.depthwise.bias, 0.0)
-        nn.init.kaiming_normal_(self.pointwise.weight)
-        nn.init.constant_(self.pointwise.bias, 0.0)
+        # nn.init.kaiming_normal_(self.depthwise.weight)
+        # nn.init.constant_(self.depthwise.bias, 0.0)
+        # nn.init.kaiming_normal_(self.pointwise.weight)
+        # nn.init.constant_(self.pointwise.bias, 0.0)
 
     def forward(self, x):
         x = torch.transpose(x, 1, 2)
