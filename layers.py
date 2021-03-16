@@ -295,38 +295,58 @@ class ConvBlock(nn.Module):
 #             norm_out, norm_out, norm_out)
 
 #         return self.dropout(x + attn_output)
+def PosEncoder(x, min_timescale=1.0, max_timescale=1.0e4):
+    x = x.transpose(1, 2)
+    length = x.size()[1]
+    channels = x.size()[2]
+    signal = get_timing_signal(length, channels, min_timescale, max_timescale)
+    return (x + signal.to(x.get_device())).transpose(1, 2)
 
 
-class PositionalEncoding(nn.Module):
+def get_timing_signal(length, channels,
+                      min_timescale=1.0, max_timescale=1.0e4):
+    position = torch.arange(length).type(torch.float32)
+    num_timescales = channels // 2
+    log_timescale_increment = (math.log(float(max_timescale) / float(min_timescale)) / (float(num_timescales) - 1))
+    inv_timescales = min_timescale * torch.exp(
+            torch.arange(num_timescales).type(torch.float32) * -log_timescale_increment)
+    scaled_time = position.unsqueeze(1) * inv_timescales.unsqueeze(0)
+    signal = torch.cat([torch.sin(scaled_time), torch.cos(scaled_time)], dim = 1)
+    m = nn.ZeroPad2d((0, (channels % 2), 0, 0))
+    signal = m(signal)
+    signal = signal.view(1, length, channels)
+    return signal
+
+# class PositionalEncoding(nn.Module):
     
-    def __init__(self, model_dim, dropout, device, max_length=400):
+#     def __init__(self, model_dim, dropout, device, max_length=400):
         
-        super(PositionalEncoding, self).__init__()
+#         super(PositionalEncoding, self).__init__()
         
-        self.device = device
+#         self.device = device
         
-        self.model_dim = model_dim
+#         self.model_dim = model_dim
         
-        pos_encoding = torch.zeros(max_length, model_dim)
+#         pos_encoding = torch.zeros(max_length, model_dim)
         
-        for pos in range(max_length):
+#         for pos in range(max_length):
             
-            for i in range(0, model_dim, 2):
+#             for i in range(0, model_dim, 2):
                 
-                pos_encoding[pos, i] = math.sin(pos / (10000 ** ((2*i)/model_dim)))
-                pos_encoding[pos, i+1] = math.cos(pos / (10000 ** ((2*(i+1))/model_dim)))
+#                 pos_encoding[pos, i] = math.sin(pos / (10000 ** ((2*i)/model_dim)))
+#                 pos_encoding[pos, i+1] = math.cos(pos / (10000 ** ((2*(i+1))/model_dim)))
             
         
-        pos_encoding = pos_encoding.unsqueeze(0).to(device)
-        self.register_buffer('pos_encoding', pos_encoding)
+#         pos_encoding = pos_encoding.unsqueeze(0).to(device)
+#         self.register_buffer('pos_encoding', pos_encoding)
         
     
-    def forward(self, x):
-        #print("PE shape: ", self.pos_encoding.shape)
-        #print("PE input: ", x.shape)
-        x = x + torch.autograd.Variable(self.pos_encoding[:, :x.shape[1]], requires_grad=False)
-        #print("PE output: ", x.shape)
-        return x
+#     def forward(self, x):
+#         #print("PE shape: ", self.pos_encoding.shape)
+#         #print("PE input: ", x.shape)
+#         x = x + torch.autograd.Variable(self.pos_encoding[:, :x.shape[1]], requires_grad=False)
+#         #print("PE output: ", x.shape)
+#         return x
 
 
 # class PositionalEncoding(nn.Module):
@@ -456,7 +476,7 @@ class StackedEncoder(nn.Module):
     def __init__(self, num_conv_blocks, kernel_size, num_heads=8, d_model=128, dropout=0.1, device="cuda:0"):
 
         super(StackedEncoder, self).__init__()
-        self.pos_encoder = PositionalEncoding(d_model, dropout, device)
+        #self.pos_encoder = PositionalEncoding(d_model, dropout, device)
         self.pos_norm = nn.LayerNorm(d_model)
 
         self.conv_blocks = nn.ModuleList([ConvBlock(d_model, d_model, kernel_size)
@@ -474,7 +494,7 @@ class StackedEncoder(nn.Module):
         self.dropout = dropout
 
     def forward(self, x, mask):
-        x = self.pos_encoder(x)
+        x = PosEncoder(x)
         res = x
         x = self.pos_norm(x)
 
