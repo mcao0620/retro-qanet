@@ -22,7 +22,6 @@ from util import collate_fn, SQuAD
 
 # TO TRAIN YOU MUST ALSO SET --model_name (skecthy or intensive)
 
-
 def main(args):
     # Set up logging and devices
     args.save_dir = util.get_save_dir(args.save_dir, args.name, training=True)
@@ -131,8 +130,6 @@ def main(args):
                 y1, y2 = y1.to(device), y2.to(device)
                 if args.model_name == 'sketchy':
                     yi = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
-                    log_p1 = None
-                    log_p2 = None
                     loss = bceLoss(yi, torch.where(y1 == 0, 1, 0).type_as(yi))
                 elif args.model_name == 'intensive':
                     yi, log_p1, log_p2 = model(
@@ -201,7 +198,7 @@ def main(args):
                                    num_visuals=args.num_visuals)
 
 
-def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model_name="", a1=0.1, a2=0.9):
+def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model_name="", a1=0.5, a2=0.5):
     meter = util.AverageMeter()
 
     # setup losses
@@ -226,7 +223,7 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
             if model_name == 'sketchy':
                 yi = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
                 loss = bceLoss(yi, torch.where(y1 == 0, 1, 0).type_as(yi))
-                starts, ends = [y1, y2]
+                starts, ends = [[0 if x > 0.5 else x for x in y1], [0 if y > 0.5 else y for y in y2]]
             elif model_name == 'intensive':
                 yi, log_p1, log_p2 = model(
                     cw_idxs, qw_idxs, cc_idxs, qc_idxs)
