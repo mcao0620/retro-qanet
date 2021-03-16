@@ -406,10 +406,10 @@ class FV(nn.Module):
     def forward(self, M_1, M_2, M_3, mask):
         # linear layer
         M_X = self.verify_linear(torch.cat((M_1, M_2, M_3), dim=-1))
-        # produce logits
-        sq1 = masked_sigmoid(torch.squeeze(M_X), mask, log_sigmoid=False)
 
-        y_i = torch.squeeze(sq1[:, 0])
+        sq1 = masked_softmax(torch.squeeze(M_X), mask, log_softmax=True)
+
+        y_i = torch.cat((sq1, sq2), dim=-1)
 
         return y_i
 
@@ -470,6 +470,8 @@ class RV_TAV(nn.Module):
         self.lam = nn.Parameter(torch.tensor([0.5]))
 
     def forward(self, sketchy_prediction, intensive_prediction, log_p1, log_p2, max_len=15, use_squad_v2=True):
+        sketchy_prediction = sketchy_prediction.squeeze()
+        intensive_prediction = intensive_prediction.squeeze()
         s_in = log_p1.exp()
         e_in = log_p2.exp()
         starts, ends = discretize(

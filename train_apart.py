@@ -22,6 +22,10 @@ from util import collate_fn, SQuAD
 
 # TO TRAIN YOU MUST ALSO SET --model_name (skecthy or intensive)
 
+import os
+
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
+
 def main(args):
     # Set up logging and devices
     args.save_dir = util.get_save_dir(args.save_dir, args.name, training=True)
@@ -98,14 +102,14 @@ def main(args):
     train_loader = data.DataLoader(train_dataset,
                                    batch_size=args.batch_size,
                                    shuffle=True,
-                                   num_workers=args.num_workers,
+                                   num_workers=0,
                                    collate_fn=collate_fn)
 
     dev_dataset = SQuAD(args.dev_record_file, args.use_squad_v2)
     dev_loader = data.DataLoader(dev_dataset,
                                  batch_size=args.batch_size,
                                  shuffle=False,
-                                 num_workers=args.num_workers,
+                                 num_workers=0,
                                  collate_fn=collate_fn)
 
     # Train
@@ -130,12 +134,16 @@ def main(args):
                 y1, y2 = y1.to(device), y2.to(device)
                 if args.model_name == 'sketchy':
                     yi = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
-                    loss = bceLoss(yi, torch.where(y1 == 0, 1, 0).type_as(yi))
+                    y_temp = 1 - yi 
+                    yi = torch.cat((yi, y_temp), dim=-1)
+                    loss = F.nll_loss(yi, torch.where(y1 == 0, 0, 1).type_as(yi))
                 elif args.model_name == 'intensive':
                     yi, log_p1, log_p2 = model(
                         cw_idxs, qw_idxs, cc_idxs, qc_idxs)
-                    loss = args.alpha_1 * bceLoss(yi, torch.where(y1 == 0, 1, 0).type_as(
-                        yi)) + args.alpha_2 * (F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2))
+                    y_temp = 1 - yi 
+                    yi = torch.cat((yi, y_temp), dim=-1)
+                    loss = args.alpha_1 *  F.nll_loss(yi, torch.where(y1 == 0, 0, 1).type_as(yi))
+                     + args.alpha_2 * (F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2))
                 elif args.model_name == 'retro':
                     log_p1, log_p2 = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
                     loss = F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2)
@@ -222,17 +230,19 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
             y1, y2 = y1.to(device), y2.to(device)
             if model_name == 'sketchy':
                 yi = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
-                print(yi, y1)
-                loss = bceLoss(yi, torch.where(y1 == 0, 1, 0).type_as(yi))
-                starts, ends = [[0 if x > 0.5 else x for x in y1], [0 if y > 0.5 else y for y in y2]]
+                y_temp = 1 - yi 
+                yi = torch.cat((yi, y_temp), dim=-1)
+                loss = nn.nll_loss(yi, torch.where(y1 == 0, 1, 0).type_as(yi))
+                starts, ends = [[0 if x > 0.5 else x for x in y1[:,0]], [0 if y > 0.5 else y for y in y2[:,0]]]
             elif model_name == 'intensive':
                 yi, log_p1, log_p2 = model(
                     cw_idxs, qw_idxs, cc_idxs, qc_idxs)
-                loss = a1 * bceLoss(yi, torch.where(y1 == 0, 1, 0).type_as(
+                y_temp = 1 - yi 
+                yi = torch.cat((yi, y_temp), dim=-1)
+                loss = a1 * nn.nll_loss(yi, torch.where(y1 == 0, 1, 0).type_as(
                     yi)) + a2 * (F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2))
                 # Get F1 and EM scores
                 p1, p2 = log_p1.exp(), log_p2.exp()
-                print(yi, y1, p1, y2, p2)
                 starts, ends = util.discretize(p1, p2, max_len, use_squad_v2)
                 starts, ends = starts.tolist(), ends.tolist()
             elif model_name == 'retro':
