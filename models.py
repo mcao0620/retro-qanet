@@ -129,9 +129,7 @@ class QANet(nn.Module):
 
         # c_mask_3d = torch.eq(cw_idxs, 1).float()
         # q_mask_3d = torch.eq(qw_idxs, 1).float()
-
-        print(c_mask.shape)
-
+        
         # (batch_size, c_len, hidden_size)
         c_emb = self.emb(cw_idxs, cc_idxs)
         # (batch_size, q_len, hidden_size)
