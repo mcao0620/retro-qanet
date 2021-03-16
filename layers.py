@@ -298,30 +298,62 @@ class ConvBlock(nn.Module):
 
 
 class PositionalEncoding(nn.Module):
-    """ Position Encoder which injects positional structure and information of to the input sequence.
-    This particular implementation was derived from the one implemented on the pytorch transformer in the pytorch documentation(https://pytorch.org/tutorials/beginner/transformer_tutorial.html#define-the-model)
-    Args:
-        d_model () :
-        dropout () :
-        max_len () :
-    """
-
-    def __init__(self, d_model, dropout=0.1, max_len=5000):
+    
+    def __init__(self, model_dim, dropout, device, max_length=400):
+        
         super(PositionalEncoding, self).__init__()
-        self.dropout = nn.Dropout(p=dropout)
-
-        pe = torch.zeros(max_len, d_model)
-        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
-        div_term = torch.exp(torch.arange(
-            0, d_model, 2).float() * (-math.log(10000.0) / d_model))
-        pe[:, 0::2] = torch.sin(position * div_term)
-        pe[:, 1::2] = torch.cos(position * div_term)
-        pe = pe.unsqueeze(0).transpose(0, 1)
-        self.register_buffer('pe', pe)
-
+        
+        self.device = device
+        
+        self.model_dim = model_dim
+        
+        pos_encoding = torch.zeros(max_length, model_dim)
+        
+        for pos in range(max_length):
+            
+            for i in range(0, model_dim, 2):
+                
+                pos_encoding[pos, i] = math.sin(pos / (10000 ** ((2*i)/model_dim)))
+                pos_encoding[pos, i+1] = math.cos(pos / (10000 ** ((2*(i+1))/model_dim)))
+            
+        
+        pos_encoding = pos_encoding.unsqueeze(0).to(device)
+        self.register_buffer('pos_encoding', pos_encoding)
+        
+    
     def forward(self, x):
-        x = x + self.pe[:x.size(0), :]
-        return self.dropout(x)
+        #print("PE shape: ", self.pos_encoding.shape)
+        #print("PE input: ", x.shape)
+        x = x + torch.autograd.Variable(self.pos_encoding[:, :x.shape[1]], requires_grad=False)
+        #print("PE output: ", x.shape)
+        return x
+
+
+# class PositionalEncoding(nn.Module):
+#     """ Position Encoder which injects positional structure and information of to the input sequence.
+#     This particular implementation was derived from the one implemented on the pytorch transformer in the pytorch documentation(https://pytorch.org/tutorials/beginner/transformer_tutorial.html#define-the-model)
+#     Args:
+#         d_model () :
+#         dropout () :
+#         max_len () :
+#     """
+
+#     def __init__(self, d_model, dropout=0.1, max_len=5000):
+#         super(PositionalEncoding, self).__init__()
+#         self.dropout = nn.Dropout(p=dropout)
+
+#         pe = torch.zeros(max_len, d_model)
+#         position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
+#         div_term = torch.exp(torch.arange(
+#             0, d_model, 2).float() * (-math.log(10000.0) / d_model))
+#         pe[:, 0::2] = torch.sin(position * div_term)
+#         pe[:, 1::2] = torch.cos(position * div_term)
+#         pe = pe.unsqueeze(0).transpose(0, 1)
+#         self.register_buffer('pe', pe)
+
+#     def forward(self, x):
+#         x = x + self.pe[:x.size(0), :]
+#         return self.dropout(x)
 
 
 class EmbeddingResizer(nn.Module):
@@ -424,7 +456,7 @@ class StackedEncoder(nn.Module):
     def __init__(self, num_conv_blocks, kernel_size, num_heads=8, d_model=128, dropout=0.1, device="cuda:0"):
 
         super(StackedEncoder, self).__init__()
-        self.pos_encoder = PositionalEncoding(d_model, dropout)
+        self.pos_encoder = PositionalEncoding(d_model, dropout, device)
         self.pos_norm = nn.LayerNorm(d_model)
 
         self.conv_blocks = nn.ModuleList([ConvBlock(d_model, d_model, kernel_size)
