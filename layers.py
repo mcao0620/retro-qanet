@@ -303,11 +303,10 @@ class SelfAttentionBlock(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x, mask):
-        norm_out = self.norm(x)
+        norm_out = self.norm(x).permute(1,0,2)
         attn_output, attn_output_weights = self.self_attn_layer(
-            norm_out, norm_out, norm_out, attn_mask=mask)
-
-        return self.dropout(x + attn_output)
+            norm_out, norm_out, norm_out, key_padding_mask=~mask)
+        return self.dropout(x + attn_output.permute(1,0,2))
 
 
 class PositionalEncoding(nn.Module):
