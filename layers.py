@@ -293,7 +293,7 @@ class ConvBlock(nn.Module):
 
 class SelfAttentionBlock(nn.Module):
 
-     def __init__(self, d_model, num_heads, dropout=0.1):
+     def __init__(self, d_model, num_heads, device, dropout=0.1):
          super(SelfAttentionBlock,  self).__init__()
          self.norm = nn.LayerNorm(d_model)
          self.self_attn_layer = nn.MultiheadAttention(
@@ -302,10 +302,11 @@ class SelfAttentionBlock(nn.Module):
 
      def forward(self, x):
          norm_out = self.norm(x)
+         norm_out = norm_out.permute(1,0,2)
          attn_output, attn_output_weights = self.self_attn_layer(
-             norm_out, norm_out, norm_out)
+             norm_out, norm_out, norm_out, key_padding_mask=mask)
 
-         return self.dropout(x + attn_output)
+         return self.dropout(x + attn_output.permute(1,0,2))
 
 def PosEncoder(x, min_timescale=1.0, max_timescale=1.0e4):
     x = x.transpose(1, 2)
@@ -493,9 +494,13 @@ class StackedEncoder(nn.Module):
 
         self.conv_blocks = nn.ModuleList([ConvBlock(d_model, d_model, kernel_size)
                                           for _ in range(num_conv_blocks)])
+        self.conv_norm = nn.ModuleList([nn.LayerNorm(d_model) for _ in range(num_conv_blocks)])
 
-        self.self_attn_block = SelfAttentionBlock(d_model, num_heads, dropout)
+        self.self_attn_block =  MultiheadAttentionLayer(d_model, num_heads, device, dropout=dropout)
         self.ffn_block = FFNBlock(d_model)
+
+        self.ffn_block = nn.Linear(d_model, d_model)
+        self.ffn_norm = nn.LayerNorm(d_model)
         '''self.conv_norm = nn.ModuleList([nn.LayerNorm(d_model) for _ in range(num_conv_blocks)])
 
        # self.self_attn_block = nn.MultiheadAttention(d_model, num_heads, dropout)
@@ -585,7 +590,7 @@ class FV(nn.Module):
 
         sq1 = masked_softmax(torch.squeeze(M_X), mask, log_softmax=True)
 
-        y_i = torch.cat((sq1, sq2), dim=-1)
+        y_i = sq1
 
         return y_i
 
@@ -603,8 +608,13 @@ class IntensiveOutput(nn.Module):
         self.Ws = nn.Linear(2 * hidden_size, 1, bias=False)
         self.We = nn.Linear(2 * hidden_size, 1, bias=False)
 
+        nn.init.xavier_uniform_(self.Ws.weight)
+        nn.init.xavier_uniform_(self.We.weight)
+
     def forward(self, M_1, M_2, M_3, mask):
+        
         y_i = self.ifv(M_1, M_2, M_3, mask)
+
         logits_1 = self.Ws(torch.cat((M_1, M_2), dim=-1)).squeeze()
         logits_2 = self.We(torch.cat((M_1, M_3), dim=-1)).squeeze()
 
