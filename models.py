@@ -82,7 +82,7 @@ class BiDAF(nn.Module):
 
 class SketchyReader(nn.Module):
 
-    def __init__(self, word_vectors, char_vectors, hidden_size, drop_prob=0.):
+    def __init__(self, word_vectors, char_vectors, hidden_size, drop_prob=0.1):
         super(SketchyReader, self).__init__()
         '''class QANet(nn.Module):
 
