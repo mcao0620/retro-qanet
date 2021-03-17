@@ -482,8 +482,6 @@ class QANetOutput(nn.Module):
         log_p1 = masked_softmax(begin.squeeze(), mask, log_softmax=True)
         log_p2 = masked_softmax(end.squeeze(), mask, log_softmax=True)
 
-        print(log_p1, log_p2)
-
         return log_p1, log_p2
 
 class FV(nn.Module):
