@@ -252,17 +252,17 @@ class IntensiveReader(nn.Module):
 
         mod1 = att
 
-        for layer in self.model_encoder_layers:
+        for i, layer in enumerate(self.model_encoder_layers):
             mod1 = layer(mod1, c_mask, i*(2+2)+1, 7)
 
         mod2 = mod1
 
-        for layer in self.model_encoder_layers:
+        for i, layer in enumerate(self.model_encoder_layers):
             mod2 = layer(mod2, c_mask, i*(2+2)+1, 7)
 
         mod3 = mod2
 
-        for layer in self.model_encoder_layers:
+        for i, layer in enumerate(self.model_encoder_layers):
             mod3 = layer(mod3, c_mask, i*(2+2)+1, 7)
 
         # mod1 = self.mod1(att)        # (batch_size, c_len, 2 * hidden_size)
