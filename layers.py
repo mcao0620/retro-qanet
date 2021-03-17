@@ -668,8 +668,8 @@ class IntensiveOutput(nn.Module):
         # need to make these the size of M_i
         #self.Ws = nn.Linear(2 * hidden_size, 1, bias=False)
         #self.We = nn.Linear(2 * hidden_size, 1, bias=False)
-        self.Ws = layers.Initialized_Conv1d(2 * hidden_size, 1)
-        self.We = layers.Initialized_Conv1d(2 * hidden_size, 1)
+        self.Ws = Initialized_Conv1d(2 * hidden_size, 1)
+        self.We = Initialized_Conv1d(2 * hidden_size, 1)
 
         #nn.init.xavier_uniform_(self.Ws.weight)
         #nn.init.xavier_uniform_(self.We.weight)
