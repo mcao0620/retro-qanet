@@ -539,7 +539,7 @@ class StackedEncoder(nn.Module):
             x = self.conv_norm[i](x)
 
         x = x.permute(1,0,2)
-        x, attn_output_weights = self.self_attn_block(x, x, x, key_padding_mask=mask)
+        x, attn_output_weights = self.self_attn_block(x, x, x, key_padding_mask=~mask)
         x = x.permute(1,0,2)
         x = F.dropout(x + res, p=self.dropout)
         res = x
@@ -590,11 +590,12 @@ class FV(nn.Module):
         # linear layer
         M_X = self.verify_linear(torch.cat((M_1, M_2, M_3), dim=-1))
 
-        sq1 = masked_softmax(torch.squeeze(M_X), mask, log_softmax=True)
+        sq1 = masked_sigmoid(torch.squeeze(M_X), mask, log_sigmoid=False)
 
-        y_i = sq1[:, 0].squeeze()
+        #answerability that takes into account answer confidence
+        y_i = torch.max(sq1.T - sq1[:,0], dim=0)[0] 
 
-        return y_i
+        return y_i.type(torch.FloatTensor)
 
 
 class IntensiveOutput(nn.Module):
