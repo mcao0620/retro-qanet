@@ -393,8 +393,24 @@ class EmbeddingResizer(nn.Module):
     """ Resizes input embedding to hidden size of 128 that can be passed to the convolution blocks
     Args:
     """
-
     def __init__(self, in_channels, out_channels,
+                 kernel_size=1, stride=1, padding=0, groups=1, bias=False):
+        super(EmbeddingResizer, self).__init__()
+
+        self.out = nn.Conv1d(
+            in_channels, out_channels,
+            kernel_size, stride=stride,
+            padding=padding, groups=groups, bias=bias)
+        nn.init.xavier_uniform_(self.out.weight)
+
+    def forward(self, x):
+        x = torch.transpose(x, 1, 2)
+        return torch.transpose(self.out(x), 1, 2)
+
+class MultiheadAttentionLayer(nn.Module):
+    
+    def __init__(self, hid_dim, num_heads, device):
+    '''def __init__(self, in_channels, out_channels,
                  kernel_size=1, stride=1, padding=0, groups=1, bias=False):
         super(EmbeddingResizer, self).__init__()
 
@@ -412,7 +428,7 @@ class EmbeddingResizer(nn.Module):
 
     def forward(self, x):
         x = torch.transpose(x, 1, 2)
-        return torch.transpose(self.pointwise(self.depthwise(x)), 1, 2)
+        return torch.transpose(self.pointwise(self.depthwise(x)), 1, 2)'''
 
 '''class MultiheadAttentionLayer(nn.Module):
     

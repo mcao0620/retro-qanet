@@ -198,13 +198,13 @@ class IntensiveReader(nn.Module):
         hidden_size *= 2    # update hidden size for other layers due to char embeddings
 
         self.c_resizer = layers.EmbeddingResizer(in_channels=hidden_size,
-                                               out_channels=128, kernel_size=5)
+                                               out_channels=128, kernel_size=1)
                     
         self.q_resizer = layers.EmbeddingResizer(in_channels=hidden_size,
-                                               out_channels=128, kernel_size=5)
+                                               out_channels=128, kernel_size=1)
 
         self.model_resizer = layers.EmbeddingResizer(in_channels=512,
-                                                     out_channels=128, kernel_size=5)
+                                                     out_channels=128, kernel_size=1)
 
         self.enc = layers.StackedEncoder(num_conv_blocks=4,
                                          kernel_size=7,
