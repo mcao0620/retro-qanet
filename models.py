@@ -245,7 +245,7 @@ class IntensiveReader(nn.Module):
         c_enc = self.enc(c_emb, c_mask, 1, 1)    # (batch_size, c_len, 2 * hidden_size)
         q_enc = self.enc(q_emb, q_mask, 1, 1)    # (batch_size, q_len, 2 * hidden_size)
 
-        att = self.att(c_enc, q_enc,
+        att = self.att(c_enc.transpose(1, 2), q_enc.transpose(1, 2),
                        c_mask, q_mask)    # (batch_size, c_len, 8 * hidden_size)
 
         att = self.model_resizer(att)
