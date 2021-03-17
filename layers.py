@@ -592,7 +592,9 @@ class StackedEncoder(nn.Module):
         x = self.ffn_1_norm(x.transpose(1, 2)).transpose(1, 2)
         x = F.dropout(x, p=self.dropout)
        # x = x.permute(1,0,2)
+        x = x.transpose(1, 2)
         x, attn_output_weights = self.self_attn_block(x, x, x, key_padding_mask=~mask)
+        x = x.transpose(1, 2)
      #   x = x.permute(1,0,2)
         x = self.layer_dropout(x, res, self.dropout * float(l) / total_layers)
         l += 1
