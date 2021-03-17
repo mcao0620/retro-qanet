@@ -239,7 +239,8 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
                 loss = a1 * bceLoss(yi, torch.where(y1 == 0, 0, 1).type(torch.FloatTensor)) + a2 * (F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2))
                 meter.update(loss.item(), batch_size)
                 # Get F1 and EM scores
-                p1, p2 = log_p1.exp(), log_p2.exp()
+                p1 = log_p1.exp()
+                p2 = log_p2.exp()
                 print(torch.max(p1, dim=1)[0])
                 print(torch.max(p2, dim=1)[0])
                 starts, ends = util.discretize(p1, p2, max_len, use_squad_v2)
