@@ -458,7 +458,7 @@ class StackedEncoder(nn.Module):
         x = F.relu(self.ffn_block(x))
         x = F.dropout(x + res, p=self.dropout)
 
-        return x.transpose(1, 2)
+        return x
 
 def mask_logits(target, mask):
     mask = mask.type(torch.float32)

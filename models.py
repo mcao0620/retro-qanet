@@ -152,7 +152,7 @@ class QANet(nn.Module):
 
         for layer in self.model_encoder_layers:
             mod3 = layer(mod3, c_mask)
-            
-        out = self.out(mod1, mod2, mod3, c_mask)
+
+        out = self.out(mod1.transpose(1, 2), mod2.transpose(1, 2), mod3.transpose(1, 2), c_mask)
 
         return out
