@@ -22,9 +22,7 @@ from util import collate_fn, SQuAD
 
 # TO TRAIN YOU MUST ALSO SET --model_name (skecthy or intensive)
 
-import os
-
-os.environ['KMP_DUPLICATE_LIB_OK']='True'
+torch.cuda.empty_cache()
 
 def main(args):
     # Set up logging and devices
