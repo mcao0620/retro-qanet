@@ -244,10 +244,6 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
                 # Get F1 and EM scores
                 p1 = log_p1.exp()
                 p2 = log_p2.exp()
-                print(p1[0,:])
-                print(p1)
-                print(p2[0,:])
-                print(p2)
                 starts, ends = util.discretize(p1, p2, max_len, use_squad_v2)
             elif model_name == 'retro':
                 log_p1, log_p2 = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
@@ -258,9 +254,6 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
             else:
                 raise ValueError(
                     'invalid --model_name, sketchy or intensive required')
-
-            print("starts: ", starts, "Truth", y1)
-            print("ends: ", ends, "Truth: ", y2)
             
             # Log info
             progress_bar.update(batch_size)
