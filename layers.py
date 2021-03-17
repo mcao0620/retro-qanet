@@ -290,6 +290,37 @@ class ConvBlock(nn.Module):
 
 #         return self.dropout_layer(F.relu(x) + ffn_layer_out)
 
+class Initialized_Conv1d(nn.Module):
+    def __init__(self, in_channels, out_channels,
+                 kernel_size=1, stride=1, padding=0, groups=1,
+                 relu=False, bias=False):
+        super().__init__()
+        self.out = nn.Conv1d(
+            in_channels, out_channels,
+            kernel_size, stride=stride,
+            padding=padding, groups=groups, bias=bias)
+        if relu is True:
+            self.relu = True
+            nn.init.kaiming_normal_(self.out.weight, nonlinearity='relu')
+        else:
+            self.relu = False
+            nn.init.xavier_uniform_(self.out.weight)
+
+    def forward(self, x):
+        if self.relu is True:
+            return F.relu(self.out(x))
+        else:
+            return self.out(x)
+
+class DepthwiseSeparableConv(nn.Module):
+    def __init__(self, in_ch, out_ch, k, bias=True):
+        super().__init__()
+        self.depthwise_conv = nn.Conv1d(in_channels=in_ch, out_channels=in_ch, kernel_size=k, groups=in_ch, padding=k // 2, bias=False)
+        self.pointwise_conv = nn.Conv1d(in_channels=in_ch, out_channels=out_ch, kernel_size=1, padding=0, bias=bias)
+    def forward(self, x):
+        return F.relu(self.pointwise_conv(self.depthwise_conv(x)))
+
+
 
 class SelfAttentionBlock(nn.Module):
 
@@ -496,17 +527,19 @@ class StackedEncoder(nn.Module):
 
         super(StackedEncoder, self).__init__()
         #self.pos_encoder = PositionalEncoding(d_model, dropout, device)
-        self.pos_norm = nn.LayerNorm(d_model)
+        #self.pos_norm = nn.LayerNorm(d_model)
 
-        self.conv_blocks = nn.ModuleList([ConvBlock(d_model, d_model, kernel_size)
+        self.conv_blocks = nn.ModuleList([DepthwiseSeparableConv(d_model, d_model, kernel_size)
                                           for _ in range(num_conv_blocks)])
         self.conv_norm = nn.ModuleList([nn.LayerNorm(d_model) for _ in range(num_conv_blocks)])
 
-        self.self_attn_block =  nn.MultiheadAttention(d_model, 2, dropout)
+        self.self_attn_block =  nn.MultiheadAttention(d_model, num_heads, dropout)
         #self.ffn_block = FFNBlock(d_model)
 
-        self.ffn_block = nn.Linear(d_model, d_model)
-        self.ffn_norm = nn.LayerNorm(d_model)
+        self.ffn_1 = Initialized_Conv1d(d_model, d_model, relu=True, bias=True)
+        self.ffn_1_norm = nn.LayerNorm(d_model)
+        self.ffn_2 = Initialized_Conv1d(d_model, d_model, bias=True)
+        self.ffn_2_norm = nn.LayerNorm(d_model)
         '''self.conv_norm = nn.ModuleList([nn.LayerNorm(d_model) for _ in range(num_conv_blocks)])
 
        # self.self_attn_block = nn.MultiheadAttention(d_model, num_heads, dropout)
@@ -517,8 +550,18 @@ class StackedEncoder(nn.Module):
         self.num_conv_blocks = num_conv_blocks
 
         self.dropout = dropout
+    
+    def layer_dropout(self, inputs, residual, dropout):
+        if self.training == True:
+            pred = torch.empty(1).uniform_(0,1) < dropout
+            if pred:
+                return residual
+            else:
+                return F.dropout(inputs, dropout, training=self.training) + residual
+        else:
+            return inputs + residual
 
-    def forward(self, x, mask):
+    def forward(self, x, mask, l, blks):
         '''x = self.pos_encoder(x)
 
         for i, conv_block in enumerate(self.conv_blocks):
@@ -532,27 +575,34 @@ class StackedEncoder(nn.Module):
         return self.ffn_block(x)'''
 
         x = PosEncoder(x)
-        res = x
-        x = self.pos_norm(x)
-
+       #res = x
+        #x = self.pos_norm(x)
+        total_layers = (self.num_conv_blocks + 1) * blks
         for i, conv_block in enumerate(self.conv_blocks):
-            x = conv_block(x)
-            x = x + res
-
-            if (i+1) % 2 == 0:
-                x = F.dropout(x, p=self.dropout)
             res = x
-            x = self.conv_norm[i](x)
+            x = self.conv_norm[i](x.transpose(1, 2)).transpose(1, 2)
 
+            if i % 2 == 0:
+                x = F.dropout(x, p=self.dropout)
+            x = conv_block(x)
+            x = self.layer_dropout(x, res, self.dropout * float(l) / total_layers)
+            l += 1
+        res = x
+
+        x = self.ffn_1_norm(x.transpose(1, 2)).transpose(1, 2)
+        x = F.dropout(x, p=self.dropout)
         x = x.permute(1,0,2)
         x, attn_output_weights = self.self_attn_block(x, x, x, key_padding_mask=~mask)
         x = x.permute(1,0,2)
-        x = F.dropout(x + res, p=self.dropout)
+        x = self.layer_dropout(x, res, self.dropout * float(l) / total_layers)
+        l += 1
         res = x
         
-        x = self.ffn_norm(x)
-        x = F.relu(self.ffn_block(x))
-        x = F.dropout(x + res, p=self.dropout)
+        x = self.ffn_2_norm(x.transpose(1, 2)).transpose(1, 2)
+        x = F.dropout(x, p=self.dropout)
+        x = self.ffn_1(x)
+        x = self.ffn_2(x)
+        x = self.layer_dropout(x, res, self.dropout * float(l) / total_layers)
 
         return x
 
