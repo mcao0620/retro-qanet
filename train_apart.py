@@ -140,7 +140,7 @@ def main(args):
                 elif args.model_name == 'intensive':
                     yi, log_p1, log_p2 = model(
                         cw_idxs, qw_idxs, cc_idxs, qc_idxs)
-                    if counter % 100 == 0:
+                    #if counter % 100 == 0:
                         #print(torch.max(log_p1.exp(), dim=1)[0])
                         #$print(torch.max(log_p2.exp(), dim=1)[0])
                     loss = args.alpha_1 * bceLoss(yi, torch.where(y1 == 0, 0, 1).type(torch.FloatTensor)) + args.alpha_2 * (F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2))
