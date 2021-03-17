@@ -143,7 +143,7 @@ def main(args):
                     #if counter % 100 == 0:
                         #print(torch.max(log_p1.exp(), dim=1)[0])
                         #$print(torch.max(log_p2.exp(), dim=1)[0])
-                    weights = torch.ones_like(log_p1.shape[1])
+                    weights = torch.ones(log_p1.shape[1])
                     weights[0] = 1/(log_p1.shape[1])
                     nll_loss = nn.NLLLoss(weight=weights)
                     loss = args.alpha_1 * bceLoss(yi, torch.where(y1 == 0, 0, 1).type(torch.FloatTensor)) + args.alpha_2 * (nll_loss(log_p1, y1) + nll_loss(log_p2, y2))
