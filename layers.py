@@ -617,8 +617,8 @@ class IntensiveOutput(nn.Module):
         self.Ws = nn.Linear(2 * hidden_size, 1, bias=False)
         self.We = nn.Linear(2 * hidden_size, 1, bias=False)
 
-        nn.init.xavier_uniform_(self.Ws.weight)
-        nn.init.xavier_uniform_(self.We.weight)
+        #nn.init.xavier_uniform_(self.Ws.weight)
+        #nn.init.xavier_uniform_(self.We.weight)
 
     def forward(self, M_1, M_2, M_3, mask):
 
