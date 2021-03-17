@@ -666,8 +666,10 @@ class IntensiveOutput(nn.Module):
         super(IntensiveOutput, self).__init__()
         self.ifv = FV(hidden_size)
         # need to make these the size of M_i
-        self.Ws = nn.Linear(2 * hidden_size, 1, bias=False)
-        self.We = nn.Linear(2 * hidden_size, 1, bias=False)
+        #self.Ws = nn.Linear(2 * hidden_size, 1, bias=False)
+        #self.We = nn.Linear(2 * hidden_size, 1, bias=False)
+        self.Ws = layers.Initialized_Conv1d(2 * hidden_size, 1)
+        self.We = layers.Initialized_Conv1d(2 * hidden_size, 1)
 
         #nn.init.xavier_uniform_(self.Ws.weight)
         #nn.init.xavier_uniform_(self.We.weight)
@@ -676,10 +678,9 @@ class IntensiveOutput(nn.Module):
 
        # y_i = self.ifv(M_1, M_2, M_3, mask)
         y_i = None
-        M_1, M_2, M_3 = M_1.transpose(1, 2), M_2.transpose(1, 2), M_3.transpose(1, 2)
-
-        logits_1 = self.Ws(torch.cat((M_1, M_2), dim=1)).squeeze()
-        logits_2 = self.We(torch.cat((M_1, M_3), dim=1)).squeeze()
+    
+        logits_1 = self.Ws(torch.cat((M_1, M_2), dim=2)).squeeze()
+        logits_2 = self.We(torch.cat((M_1, M_3), dim=2)).squeeze()
 
         log_p1 = masked_softmax(logits_1, mask, dim=1, log_softmax=True)
         log_p2 = masked_softmax(logits_2, mask, dim=1, log_softmax=True)
