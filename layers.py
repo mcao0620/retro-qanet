@@ -313,7 +313,7 @@ def PosEncoder(x, min_timescale=1.0, max_timescale=1.0e4):
     length = x.size()[1]
     channels = x.size()[2]
     signal = get_timing_signal(length, channels, min_timescale, max_timescale)
-    return (x + signal.to(x.get_device())).transpose(1, 2)
+    return (x + signal.to(get_device(x))).transpose(1, 2)
 
 
 def get_timing_signal(length, channels,
@@ -393,23 +393,7 @@ class EmbeddingResizer(nn.Module):
     """ Resizes input embedding to hidden size of 128 that can be passed to the convolution blocks
     Args:
     """
-    def __init__(self, in_channels, out_channels,
-                 kernel_size=1, stride=1, padding=0, groups=1, bias=False):
-        super(EmbeddingResizer, self).__init__()
 
-        self.out = nn.Conv1d(
-            in_channels, out_channels,
-            kernel_size, stride=stride,
-            padding=padding, groups=groups, bias=bias)
-        nn.init.xavier_uniform_(self.out.weight)
-
-    def forward(self, x):
-        x = torch.transpose(x, 1, 2)
-        return torch.transpose(self.out(x), 1, 2)
-
-'''class MultiheadAttentionLayer(nn.Module):
-    
-    def __init__(self, hid_dim, num_heads, device):
     def __init__(self, in_channels, out_channels,
                  kernel_size=1, stride=1, padding=0, groups=1, bias=False):
         super(EmbeddingResizer, self).__init__()
@@ -426,9 +410,9 @@ class EmbeddingResizer(nn.Module):
             padding=padding, groups=groups, bias=True)
         #nn.init.xavier_uniform_(self.pointwise.weight)
 
-        def forward(self, x):
+    def forward(self, x):
         x = torch.transpose(x, 1, 2)
-        return torch.transpose(self.pointwise(self.depthwise(x)), 1, 2)'''
+        return torch.transpose(self.pointwise(self.depthwise(x)), 1, 2)
 
 '''class MultiheadAttentionLayer(nn.Module):
     
@@ -518,7 +502,7 @@ class StackedEncoder(nn.Module):
                                           for _ in range(num_conv_blocks)])
         self.conv_norm = nn.ModuleList([nn.LayerNorm(d_model) for _ in range(num_conv_blocks)])
 
-        self.self_attn_block =  nn.MultiheadAttention(d_model, 2, dropout)
+        self.self_attn_block =  nn.MultiheadAttention(d_model, num_heads, dropout)
         #self.ffn_block = FFNBlock(d_model)
 
         self.ffn_block = nn.Linear(d_model, d_model)
@@ -633,8 +617,8 @@ class IntensiveOutput(nn.Module):
         self.Ws = nn.Linear(2 * hidden_size, 1, bias=False)
         self.We = nn.Linear(2 * hidden_size, 1, bias=False)
 
-        #nn.init.xavier_uniform_(self.Ws.weight)
-        #nn.init.xavier_uniform_(self.We.weight)
+        nn.init.xavier_uniform_(self.Ws.weight)
+        nn.init.xavier_uniform_(self.We.weight)
 
     def forward(self, M_1, M_2, M_3, mask):
 
