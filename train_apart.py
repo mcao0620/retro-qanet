@@ -117,11 +117,13 @@ def main(args):
     steps_till_eval = args.eval_steps
     epoch = step // len(train_dataset)
     while epoch != args.num_epochs:
+        counter = 0
         epoch += 1
         log.info(f'Starting epoch {epoch}...')
         with torch.enable_grad(), \
                 tqdm(total=len(train_loader.dataset)) as progress_bar:
             for cw_idxs, cc_idxs, qw_idxs, qc_idxs, y1, y2, ids in train_loader:
+                counter += 1
                 # Setup for forward
                 cw_idxs = cw_idxs.to(device)
                 qw_idxs = qw_idxs.to(device)
@@ -138,7 +140,9 @@ def main(args):
                 elif args.model_name == 'intensive':
                     yi, log_p1, log_p2 = model(
                         cw_idxs, qw_idxs, cc_idxs, qc_idxs)
-                    
+                    if counter % 100 == 0:
+                        print(torch.max(p1, dim=1)[0])
+                        print(torch.max(p2, dim=1)[0])
                     loss = args.alpha_1 * bceLoss(yi, torch.where(y1 == 0, 0, 1).type(torch.FloatTensor)) + args.alpha_2 * (F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2))
                 elif args.model_name == 'retro':
                     log_p1, log_p2 = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
@@ -227,35 +231,39 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
             if model_name == 'sketchy':
                 yi = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
                 loss = bceLoss(yi, torch.where(y1 == 0, 0, 1).type(torch.FloatTensor))
+                meter.update(loss.item(), batch_size)
                 starts, ends = [[0 if x > 0.5 else x for x in y1[:,0]], [0 if y > 0.5 else y for y in y2[:,0]]]
             elif model_name == 'intensive':
                 yi, log_p1, log_p2 = model(
                     cw_idxs, qw_idxs, cc_idxs, qc_idxs)
                 loss = a1 * bceLoss(yi, torch.where(y1 == 0, 0, 1).type(torch.FloatTensor)) + a2 * (F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2))
+                meter.update(loss.item(), batch_size)
                 # Get F1 and EM scores
                 p1, p2 = log_p1.exp(), log_p2.exp()
                 print(torch.max(p1, dim=1)[0])
                 print(torch.max(p2, dim=1)[0])
                 starts, ends = util.discretize(p1, p2, max_len, use_squad_v2)
-                starts, ends = starts.tolist(), ends.tolist()
             elif model_name == 'retro':
                 log_p1, log_p2 = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
                 loss = F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2)
+                meter.update(loss.item(), batch_size)
                 p1, p2 = log_p1.exp(), log_p2.exp()
                 starts, ends = util.discretize(p1, p2, max_len, use_squad_v2)
-                starts, ends = starts.tolist(), ends.tolist()
             else:
                 raise ValueError(
                     'invalid --model_name, sketchy or intensive required')
-            meter.update(loss.item(), batch_size)
+
+            print("starts: ", starts, "Truth", y1)
+            print("ends: ", ends, "Truth: ", y2)
+            
             # Log info
             progress_bar.update(batch_size)
             progress_bar.set_postfix(loss_calc=meter.avg)
 
             preds, _ = util.convert_tokens(gold_dict,
                                            ids.tolist(),
-                                           starts,
-                                           ends,
+                                           starts.tolist(),
+                                           ends.tolist()),
                                            use_squad_v2)
             pred_dict.update(preds)
 

@@ -569,7 +569,7 @@ def torch_from_json(path, dtype=torch.float32):
     return tensor
 
 
-def discretize(p_start, p_end, max_len=15, no_answer=False):
+def discretize(p_start, p_end, max_len=15, no_answer=True):
     """Discretize soft predictions to get start and end indices.
 
     Choose the pair `(i, j)` of indices that maximizes `p1[i] * p2[j]`
