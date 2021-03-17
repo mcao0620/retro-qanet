@@ -407,10 +407,10 @@ class EmbeddingResizer(nn.Module):
         x = torch.transpose(x, 1, 2)
         return torch.transpose(self.out(x), 1, 2)
 
-class MultiheadAttentionLayer(nn.Module):
+'''class MultiheadAttentionLayer(nn.Module):
     
     def __init__(self, hid_dim, num_heads, device):
-    '''def __init__(self, in_channels, out_channels,
+    def __init__(self, in_channels, out_channels,
                  kernel_size=1, stride=1, padding=0, groups=1, bias=False):
         super(EmbeddingResizer, self).__init__()
 
@@ -426,7 +426,7 @@ class MultiheadAttentionLayer(nn.Module):
             padding=padding, groups=groups, bias=True)
         #nn.init.xavier_uniform_(self.pointwise.weight)
 
-    def forward(self, x):
+        def forward(self, x):
         x = torch.transpose(x, 1, 2)
         return torch.transpose(self.pointwise(self.depthwise(x)), 1, 2)'''
 
