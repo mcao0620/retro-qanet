@@ -263,7 +263,7 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
             preds, _ = util.convert_tokens(gold_dict,
                                            ids.tolist(),
                                            starts.tolist(),
-                                           ends.tolist()),
+                                           ends.tolist(),
                                            use_squad_v2)
             pred_dict.update(preds)
 
