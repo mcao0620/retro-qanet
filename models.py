@@ -247,7 +247,7 @@ class IntensiveReader(nn.Module):
 
         att = self.att(c_enc.transpose(1, 2), q_enc.transpose(1, 2),
                        c_mask, q_mask)    # (batch_size, c_len, 8 * hidden_size)
-
+        att = att.transpose(1, 2)
         att = self.model_resizer(att)
 
         mod1 = att
