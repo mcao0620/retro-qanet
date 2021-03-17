@@ -145,7 +145,7 @@ def main(args):
                         #$print(torch.max(log_p2.exp(), dim=1)[0])
                     weights = torch.ones(log_p1.shape[1])
                     weights[0] = 1/(log_p1.shape[1])
-                    nll_loss = nn.NLLLoss(weight=weights)
+                    nll_loss = nn.NLLLoss(weight=weights.to(device='cuda'))
                     loss = args.alpha_1 * bceLoss(yi, torch.where(y1 == 0, 0, 1).type(torch.FloatTensor)) + args.alpha_2 * (nll_loss(log_p1, y1) + nll_loss(log_p2, y2))
                 elif args.model_name == 'retro':
                     log_p1, log_p2 = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
