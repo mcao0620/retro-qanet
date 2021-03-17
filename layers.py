@@ -485,8 +485,8 @@ class QANetOutput(nn.Module):
         log_p1 = F.log_softmax(mask_logits(begin.squeeze(), mask), dim=1)
         log_p2 = F.log_softmax(mask_logits(end.squeeze(), mask), dim=1)
 
-        print(torch.sum(log_p1.exp(), dim=1))
-        print(torch.sum(log_p2.exp(), dim=1))
+        print(log_p1.exp())
+        print(log_p2.exp())
         return log_p1, log_p2
 
 class FV(nn.Module):
