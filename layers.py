@@ -42,7 +42,7 @@ class Embedding(nn.Module):
 
         c = self.char_embed(c.view(-1, word_len))
         c = F.dropout(c, self.drop_prob, self.training) # apply dropout
-        
+
         c_emb = self.cnn(c.permute(0, 2, 1)) # Conv1D Layer
         c_emb = torch.max(F.relu(c_emb), dim=-1)[0] # Maxpool
         c_emb = c_emb.view(batch_size, sent_len, self.hidden_size) 
@@ -304,7 +304,7 @@ class SelfAttentionBlock(nn.Module):
          norm_out = self.norm(x)
          norm_out = norm_out.permute(1,0,2)
          attn_output, attn_output_weights = self.self_attn_layer(
-             norm_out, norm_out, norm_out, key_padding_mask=mask)
+             norm_out, norm_out, norm_out, key_padding_mask=~mask)
 
          return self.dropout(x + attn_output.permute(1,0,2))
 
@@ -398,15 +398,21 @@ class EmbeddingResizer(nn.Module):
                  kernel_size=1, stride=1, padding=0, groups=1, bias=False):
         super(EmbeddingResizer, self).__init__()
 
-        self.out = nn.Conv1d(
-            in_channels, out_channels,
+        self.depthwise = nn.Conv1d(
+            in_channels, in_channels,
             kernel_size, stride=stride,
-            padding=padding, groups=groups, bias=bias)
-        nn.init.xavier_uniform_(self.out.weight)
+            padding=kernel_size//2, groups=in_channels, bias=bias)
+        #nn.init.xavier_uniform_(self.depthwise.weight)
+
+        self.pointwise = nn.Conv1d(
+            in_channels, out_channels,
+            1, stride=stride,
+            padding=padding, groups=groups, bias=True)
+        #nn.init.xavier_uniform_(self.pointwise.weight)
 
     def forward(self, x):
         x = torch.transpose(x, 1, 2)
-        return torch.transpose(self.out(x), 1, 2)
+        return torch.transpose(self.pointwise(self.depthwise(x)), 1, 2)
 
 '''class MultiheadAttentionLayer(nn.Module):
     

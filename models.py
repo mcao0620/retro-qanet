@@ -99,13 +99,13 @@ class SketchyReader(nn.Module):
         hidden_size *= 2    # update hidden size for other layers due to char embeddings
 
         self.c_resizer = layers.EmbeddingResizer(in_channels=hidden_size,
-                                               out_channels=128)
+                                               out_channels=128, kernel_size=5)
                     
         self.q_resizer = layers.EmbeddingResizer(in_channels=hidden_size,
-                                               out_channels=128)
+                                               out_channels=128, kernel_size=5)
 
         self.model_resizer = layers.EmbeddingResizer(in_channels=512,
-                                                     out_channels=128)
+                                                     out_channels=128, kernel_size=5)
 
         self.enc = layers.StackedEncoder(num_conv_blocks=4,
                                          kernel_size=7,
@@ -183,6 +183,12 @@ class IntensiveReader(nn.Module):
 
     def __init__(self, word_vectors, char_vectors, hidden_size, drop_prob=0.):
         super(IntensiveReader, self).__init__()
+        '''class QANet(nn.Module):
+
+        def __init__(self, word_vectors, char_vectors, hidden_size, device, drop_prob=0.):
+        super(QANet, self).__init__()
+
+        self.device = device'''
 
         self.emb = layers.Embedding(word_vectors=word_vectors,
                                     char_vectors=char_vectors,
@@ -191,16 +197,18 @@ class IntensiveReader(nn.Module):
 
         hidden_size *= 2    # update hidden size for other layers due to char embeddings
 
-        self.resizer = layers.EmbeddingResizer(in_channels=hidden_size,
-                                               out_channels=128)
+        self.c_resizer = layers.EmbeddingResizer(in_channels=hidden_size,
+                                               out_channels=128, kernel_size=5)
+                    
+        self.q_resizer = layers.EmbeddingResizer(in_channels=hidden_size,
+                                               out_channels=128, kernel_size=5)
 
         self.model_resizer = layers.EmbeddingResizer(in_channels=512,
-                                                     out_channels=128)
+                                                     out_channels=128, kernel_size=5)
 
         self.enc = layers.StackedEncoder(num_conv_blocks=4,
                                          kernel_size=7,
                                          dropout=drop_prob)     # embedding encoder layer
-
         self.att = layers.BiDAFAttention(hidden_size=128,
                                          drop_prob=drop_prob)     # context-query attention layer
 
@@ -226,17 +234,21 @@ class IntensiveReader(nn.Module):
         q_mask = torch.zeros_like(qw_idxs) != qw_idxs
         c_len, q_len = c_mask.sum(-1), q_mask.sum(-1)
 
+        # c_mask_3d = torch.eq(cw_idxs, 1).float()
+        # q_mask_3d = torch.eq(qw_idxs, 1).float()
+
         # (batch_size, c_len, hidden_size)
         c_emb = self.emb(cw_idxs, cc_idxs)
         # (batch_size, q_len, hidden_size)
         q_emb = self.emb(qw_idxs, qc_idxs)
 
-        c_emb = self.resizer(c_emb)
-        q_emb = self.resizer(q_emb)
+        c_emb = self.c_resizer(c_emb)
+        q_emb = self.q_resizer(q_emb)
 
-        c_enc = self.enc(c_emb)    # (batch_size, c_len, 2 * hidden_size)
-        q_enc = self.enc(q_emb)    # (batch_size, q_len, 2 * hidden_size)
+        c_enc = self.enc(c_emb, c_mask)    # (batch_size, c_len, 2 * hidden_size)
+        q_enc = self.enc(q_emb, q_mask)    # (batch_size, q_len, 2 * hidden_size)
 
+        print(c_enc.shape, q_enc.shape)
         att = self.att(c_enc, q_enc,
                        c_mask, q_mask)    # (batch_size, c_len, 8 * hidden_size)
 
@@ -245,17 +257,17 @@ class IntensiveReader(nn.Module):
         mod1 = att
 
         for layer in self.model_encoder_layers:
-            mod1 = layer(mod1)
+            mod1 = layer(mod1, c_mask)
 
         mod2 = mod1
 
         for layer in self.model_encoder_layers:
-            mod2 = layer(mod2)
+            mod2 = layer(mod2, c_mask)
 
         mod3 = mod2
 
         for layer in self.model_encoder_layers:
-            mod3 = layer(mod3)
+            mod3 = layer(mod3, c_mask)
 
         # mod1 = self.mod1(att)        # (batch_size, c_len, 2 * hidden_size)
         # mod2 = self.mod2(mod1)        # (batch_size, c_len, 2 * hidden_size)
