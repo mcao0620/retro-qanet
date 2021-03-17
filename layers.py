@@ -476,10 +476,10 @@ class QANetOutput(nn.Module):
 
 
     def forward(self, M_1, M_2, M_3, mask):
-        begin = torch.cat([M_1, M_2], dim=1)
+        begin = torch.cat([M_1, M_2], dim=2)
         begin = self.W1(begin)
         
-        end = torch.cat([M_1, M_3], dim=1)
+        end = torch.cat([M_1, M_3], dim=2)
         end = self.W2(end)
 
         log_p1 = F.log_softmax(mask_logits(begin.squeeze(), mask), dim=1)
