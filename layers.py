@@ -458,7 +458,7 @@ class StackedEncoder(nn.Module):
         x = F.relu(self.ffn_block(x))
         x = F.dropout(x + res, p=self.dropout)
 
-        return x
+        return x.transpose(1, 2)
 
 def mask_logits(target, mask):
     mask = mask.type(torch.float32)
@@ -476,10 +476,10 @@ class QANetOutput(nn.Module):
 
 
     def forward(self, M_1, M_2, M_3, mask):
-        begin = torch.cat([M_1, M_2], dim=2)
+        begin = torch.cat([M_1, M_2], dim=1)
         begin = self.W1(begin)
         
-        end = torch.cat([M_1, M_3], dim=2)
+        end = torch.cat([M_1, M_3], dim=1)
         end = self.W2(end)
 
         log_p1 = F.log_softmax(mask_logits(begin.squeeze(), mask), dim=1)
