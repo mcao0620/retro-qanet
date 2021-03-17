@@ -674,7 +674,8 @@ class IntensiveOutput(nn.Module):
 
     def forward(self, M_1, M_2, M_3, mask):
 
-        y_i = self.ifv(M_1, M_2, M_3, mask)
+       # y_i = self.ifv(M_1, M_2, M_3, mask)
+        y_i = None
 
         logits_1 = self.Ws(torch.cat((M_1, M_2), dim=1)).squeeze()
         logits_2 = self.We(torch.cat((M_1, M_3), dim=1)).squeeze()
