@@ -518,7 +518,7 @@ class StackedEncoder(nn.Module):
                                           for _ in range(num_conv_blocks)])
         self.conv_norm = nn.ModuleList([nn.LayerNorm(d_model) for _ in range(num_conv_blocks)])
 
-        self.self_attn_block =  nn.MultiheadAttention(d_model, 2, dropout)
+        self.self_attn_block =  nn.MultiheadAttention(d_model, 4, dropout)
         #self.ffn_block = FFNBlock(d_model)
 
         self.ffn_block = nn.Linear(d_model, d_model)
