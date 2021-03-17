@@ -236,12 +236,14 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
             elif model_name == 'intensive':
                 yi, log_p1, log_p2 = model(
                     cw_idxs, qw_idxs, cc_idxs, qc_idxs)
-                loss = a1 * bceLoss(yi, torch.where(y1 == 0, 0, 1).type(torch.FloatTensor)) + a2 * (F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2))
+                loss = 0 * bceLoss(yi, torch.where(y1 == 0, 0, 1).type(torch.FloatTensor)) + 1 * (F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2))
                 meter.update(loss.item(), batch_size)
                 # Get F1 and EM scores
                 p1 = log_p1.exp()
                 p2 = log_p2.exp()
+                print(p1[0,:])
                 print(p1)
+                print(p2[0,:])
                 print(p2)
                 starts, ends = util.discretize(p1, p2, max_len, use_squad_v2)
             elif model_name == 'retro':
