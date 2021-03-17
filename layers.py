@@ -679,8 +679,8 @@ class IntensiveOutput(nn.Module):
        # y_i = self.ifv(M_1, M_2, M_3, mask)
         y_i = None
     
-        logits_1 = self.Ws(torch.cat((M_1, M_2), dim=2)).squeeze()
-        logits_2 = self.We(torch.cat((M_1, M_3), dim=2)).squeeze()
+        logits_1 = self.Ws(torch.cat((M_1, M_2), dim=1)).squeeze()
+        logits_2 = self.We(torch.cat((M_1, M_3), dim=1)).squeeze()
 
         log_p1 = masked_softmax(logits_1, mask, dim=1, log_softmax=True)
         log_p2 = masked_softmax(logits_2, mask, dim=1, log_softmax=True)
