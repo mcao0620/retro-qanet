@@ -714,7 +714,7 @@ class RV_TAV(nn.Module):
         super(RV_TAV, self).__init__()
 
         # Allows us to train weights for RV
-        self.beta = nn.Parameter(torch.tensor[0.1])
+        self.beta = nn.Parameter(torch.tensor([0.1]))
         # Allows us to train Threshold for TAV
         self.ans = nn.Parameter(torch.tensor([0.1]))
         self.lam = nn.Parameter(torch.tensor([0.5]))
