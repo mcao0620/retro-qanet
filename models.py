@@ -8,7 +8,7 @@ import layers
 import torch
 import torch.nn as nn
 import util
-
+from util import discretize
 
 class BiDAF(nn.Module):
     """Baseline BiDAF model for SQuAD.
