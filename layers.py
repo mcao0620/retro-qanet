@@ -716,7 +716,7 @@ class RV_TAV(nn.Module):
         # Allows us to train weights for RV
         self.beta = nn.Parameter(torch.tensor([0.1]))
         # Allows us to train Threshold for TAV
-        self.ans = nn.Parameter(torch.tensor([1]))
+        self.ans = nn.Parameter(torch.tensor([1.0]))
         #self.lam = nn.Parameter(torch.tensor([0.5]))
 
     def forward(self, sketchy_prediction, intensive_prediction, log_p1, log_p2, max_len=15, use_squad_v2=True):
