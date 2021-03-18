@@ -154,9 +154,9 @@ def main(args):
                     #weights = torch.ones(log_p1.shape[1])
                     #weights[0] = 2/(log_p1.shape[1])
                     #nll_loss = nn.NLLLoss(weight=weights.to(device='cuda:0'))
-                    gt_0 = torch.zeros(yi.shape[0]).to(device)
-                    gt_1 = torch.ones(yi.shape[0]).to(device)
-                    loss = args.alpha_1 * bceLoss(yi, torch.where(y1 == 0, gt_0, gt_1).type(
+                    # gt_0 = torch.zeros(yi.shape[0]).to(device)
+                    # gt_1 = torch.ones(yi.shape[0]).to(device)
+                    loss = args.alpha_1 * bceLoss(yi, torch.where(y1 == 0, 0, 1).type(
                         torch.FloatTensor)) + args.alpha_2 * (F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2))
                     #loss = F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2)
                 elif args.model_name == 'retro':
