@@ -22,6 +22,7 @@ from util import collate_fn, SQuAD
 
 # TO TRAIN YOU MUST ALSO SET --model_name (skecthy or intensive)
 
+
 def main(args):
     # Set up logging and devices
     args.save_dir = util.get_save_dir(args.save_dir, args.name, training=True)
@@ -49,22 +50,28 @@ def main(args):
         model = SketchyReader(word_vectors=word_vectors,
                               char_vectors=char_vectors,
                               hidden_size=args.hidden_size,
+                              char_embed_drop_prob=args.char_embed_drop_prob,
+                              num_heads=args.num_heads,
                               drop_prob=args.drop_prob)  # SKETCHY
     elif args.model_name == 'intensive':
 
         model = IntensiveReader(word_vectors=word_vectors,
                                 char_vectors=char_vectors,
+                                num_heads=args.num_heads,
+                                char_embed_drop_prob=args.char_embed_drop_prob,
                                 hidden_size=args.hidden_size,
                                 drop_prob=args.drop_prob)  # INTENSIVE
     elif args.model_name == 'retro':
 
         model = RetroQANet(word_vectors=word_vectors,
-                            char_vectors=char_vectors,
-                            hidden_size=args.hidden_size,
-                            intensive_path=args.load_path_i,
-                            sketchy_path=args.load_path_s,
-                            gpu_ids=args.gpu_ids,
-                            drop_prob=args.drop_prob) #Outer
+                           char_vectors=char_vectors,
+                           hidden_size=args.hidden_size,
+                           num_heads=args.num_heads,
+                           char_embed_drop_prob=args.char_embed_drop_prob,
+                           intensive_path=args.load_path_i,
+                           sketchy_path=args.load_path_s,
+                           gpu_ids=args.gpu_ids,
+                           drop_prob=args.drop_prob)  # Outer
 
     model = nn.DataParallel(model, args.gpu_ids)
 
@@ -90,6 +97,10 @@ def main(args):
     # Get optimizer and scheduler
     optimizer = optim.Adadelta(model.parameters(), args.lr,
                                weight_decay=args.l2_wd)
+    if args.optim == "adam":
+        optimizer = optim.Adam(
+            model.parameters(), args.lr, weight_decay=args.l2_wd)
+
     scheduler = sched.LambdaLR(optimizer, lambda s: 1.)  # Constant LR
 
     # Get data loader
@@ -132,17 +143,19 @@ def main(args):
                 y1, y2 = y1.to(device), y2.to(device)
                 if args.model_name == 'sketchy':
                     yi = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
-                    loss = bceLoss(yi, torch.where(y1 == 0, 0, 1).type(torch.FloatTensor))
+                    loss = bceLoss(yi, torch.where(
+                        y1 == 0, 0, 1).type(torch.FloatTensor))
                 elif args.model_name == 'intensive':
                     yi, log_p1, log_p2 = model(
                         cw_idxs, qw_idxs, cc_idxs, qc_idxs)
-                    #if counter % 100 == 0:
-                        #print(torch.max(log_p1.exp(), dim=1)[0])
-                        #$print(torch.max(log_p2.exp(), dim=1)[0])
+                    # if counter % 100 == 0:
+                    #print(torch.max(log_p1.exp(), dim=1)[0])
+                    # $print(torch.max(log_p2.exp(), dim=1)[0])
                     #weights = torch.ones(log_p1.shape[1])
                     #weights[0] = 2/(log_p1.shape[1])
                     #nll_loss = nn.NLLLoss(weight=weights.to(device='cuda:0'))
-                    loss = args.alpha_1 * bceLoss(yi, torch.where(y1 == 0, 0, 1).type(torch.FloatTensor)) + args.alpha_2 * (F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2))
+                    loss = args.alpha_1 * bceLoss(yi, torch.where(y1 == 0, 0, 1).type(
+                        torch.FloatTensor)) + args.alpha_2 * (F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2))
                     #loss = F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2)
                 elif args.model_name == 'retro':
                     log_p1, log_p2 = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
@@ -182,8 +195,8 @@ def main(args):
                                                   args.dev_eval_file,
                                                   args.max_ans_len,
                                                   args.use_squad_v2,
-                                                  model_name=args.model_name, 
-                                                  a1=args.alpha_1, 
+                                                  model_name=args.model_name,
+                                                  a1=args.alpha_1,
                                                   a2=args.alpha_2)
                     saver.save(
                         step, model, results[args.metric_name], device, model_name=args.model_name)
@@ -230,22 +243,25 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
             y1, y2 = y1.to(device), y2.to(device)
             if model_name == 'sketchy':
                 yi = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
-                loss = bceLoss(yi, torch.where(y1 == 0, 0, 1).type(torch.FloatTensor))
+                loss = bceLoss(yi, torch.where(
+                    y1 == 0, 0, 1).type(torch.FloatTensor))
                 meter.update(loss.item(), batch_size)
-                starts, ends = [[0 if yi[i] == 0 else y for i, y in enumerate(y1)], [0 if yi[i] == 0 else y for i, y in enumerate(y2)]]
+                starts, ends = [[0 if yi[i] == 0 else y for i, y in enumerate(
+                    y1)], [0 if yi[i] == 0 else y for i, y in enumerate(y2)]]
             elif model_name == 'intensive':
                 yi, log_p1, log_p2 = model(
                     cw_idxs, qw_idxs, cc_idxs, qc_idxs)
-                loss = a1 * bceLoss(yi, torch.where(y1 == 0, 0, 1).type(torch.FloatTensor)) + a2 * (F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2))
+                loss = a1 * bceLoss(yi, torch.where(y1 == 0, 0, 1).type(
+                    torch.FloatTensor)) + a2 * (F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2))
                 #loss = F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2)
                 meter.update(loss.item(), batch_size)
                 # Get F1 and EM scores
                 p1 = log_p1.exp()
                 p2 = log_p2.exp()
                 # print(p1[0,:])
-                #print(p1)
+                # print(p1)
                 # print(p2[0,:])
-                #print(p2)
+                # print(p2)
                 starts, ends = util.discretize(p1, p2, max_len, use_squad_v2)
                 starts, ends = starts.tolist(), ends.tolist()
             elif model_name == 'retro':
@@ -261,7 +277,7 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
 
             print("starts: ", starts, "Truth", y1)
             print("ends: ", ends, "Truth: ", y2)
-            
+
             # Log info
             progress_bar.update(batch_size)
             progress_bar.set_postfix(loss_calc=meter.avg)

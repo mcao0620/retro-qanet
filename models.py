@@ -30,7 +30,8 @@ class BiDAF(nn.Module):
         hidden_size (int): Number of features in the hidden state at each layer.
         drop_prob (float): Dropout probability.
     """
-    def __init__(self, word_vectors, char_vectors, hidden_size, drop_prob=0.):
+
+    def __init__(self, word_vectors, char_vectors, hidden_size, num_heads=8, drop_prob=0.):
         super(BiDAF, self).__init__()
 
         self.emb = layers.Embedding(word_vectors=word_vectors,
@@ -38,7 +39,7 @@ class BiDAF(nn.Module):
                                     hidden_size=hidden_size,
                                     drop_prob=drop_prob)
 
-        hidden_size *= 2 # update hidden size for other layers due to char embeddings
+        hidden_size *= 2  # update hidden size for other layers due to char embeddings
 
         self.enc = layers.RNNEncoder(input_size=hidden_size,
                                      hidden_size=hidden_size,
@@ -61,8 +62,10 @@ class BiDAF(nn.Module):
         q_mask = torch.zeros_like(qw_idxs) != qw_idxs
         c_len, q_len = c_mask.sum(-1), q_mask.sum(-1)
 
-        c_emb = self.emb(cw_idxs, cc_idxs)         # (batch_size, c_len, hidden_size)
-        q_emb = self.emb(qw_idxs, qc_idxs)         # (batch_size, q_len, hidden_size)
+        # (batch_size, c_len, hidden_size)
+        c_emb = self.emb(cw_idxs, cc_idxs)
+        # (batch_size, q_len, hidden_size)
+        q_emb = self.emb(qw_idxs, qc_idxs)
 
         # (batch_size, c_len, 2 * hidden_size)
         c_enc = self.enc(c_emb, c_len)
@@ -82,7 +85,7 @@ class BiDAF(nn.Module):
 
 class SketchyReader(nn.Module):
 
-    def __init__(self, word_vectors, char_vectors, hidden_size, drop_prob=0.1):
+    def __init__(self, word_vectors, char_vectors, hidden_size, num_heads, char_embed_drop_prob, drop_prob=0.1):
         super(SketchyReader, self).__init__()
         '''class QANet(nn.Module):
 
@@ -94,18 +97,19 @@ class SketchyReader(nn.Module):
         self.emb = layers.Embedding(word_vectors=word_vectors,
                                     char_vectors=char_vectors,
                                     hidden_size=hidden_size,
-                                    drop_prob=drop_prob)
+                                    drop_prob=char_embed_drop_prob)
 
         hidden_size *= 2    # update hidden size for other layers due to char embeddings
 
         self.c_resizer = layers.Initialized_Conv1d(hidden_size, 128)
-                    
+
         self.q_resizer = layers.Initialized_Conv1d(hidden_size, 128)
 
         self.model_resizer = layers.Initialized_Conv1d(512, 128)
 
         self.enc = layers.StackedEncoder(num_conv_blocks=4,
                                          kernel_size=7,
+                                         num_heads=num_heads,
                                          dropout=drop_prob)     # embedding encoder layer
         self.att = layers.BiDAFAttention(hidden_size=128,
                                          drop_prob=drop_prob)     # context-query attention layer
@@ -143,8 +147,10 @@ class SketchyReader(nn.Module):
         c_emb = self.c_resizer(c_emb.transpose(1, 2))
         q_emb = self.q_resizer(q_emb.transpose(1, 2))
 
-        c_enc = self.enc(c_emb, c_mask, 1, 1)    # (batch_size, c_len, 2 * hidden_size)
-        q_enc = self.enc(q_emb, q_mask, 1, 1)    # (batch_size, q_len, 2 * hidden_size)
+        # (batch_size, c_len, 2 * hidden_size)
+        c_enc = self.enc(c_emb, c_mask, 1, 1)
+        # (batch_size, q_len, 2 * hidden_size)
+        q_enc = self.enc(q_emb, q_mask, 1, 1)
 
         att = self.att(c_enc.transpose(1, 2), q_enc.transpose(1, 2),
                        c_mask, q_mask)    # (batch_size, c_len, 8 * hidden_size)
@@ -177,7 +183,7 @@ class SketchyReader(nn.Module):
 
 class IntensiveReader(nn.Module):
 
-    def __init__(self, word_vectors, char_vectors, hidden_size, drop_prob=0.):
+    def __init__(self, word_vectors, char_vectors, hidden_size, num_heads, char_embed_drop_prob, drop_prob=0.):
         super(IntensiveReader, self).__init__()
         '''class QANet(nn.Module):
 
@@ -189,18 +195,19 @@ class IntensiveReader(nn.Module):
         self.emb = layers.Embedding(word_vectors=word_vectors,
                                     char_vectors=char_vectors,
                                     hidden_size=hidden_size,
-                                    drop_prob=drop_prob)
+                                    drop_prob=char_embed_drop_prob)
 
         hidden_size *= 2    # update hidden size for other layers due to char embeddings
 
         self.c_resizer = layers.Initialized_Conv1d(hidden_size, 128)
-                    
+
         self.q_resizer = layers.Initialized_Conv1d(hidden_size, 128)
 
         self.model_resizer = layers.Initialized_Conv1d(512, 128)
 
         self.enc = layers.StackedEncoder(num_conv_blocks=4,
                                          kernel_size=7,
+                                         num_heads=num_heads,
                                          dropout=drop_prob)     # embedding encoder layer
         self.att = layers.BiDAFAttention(hidden_size=128,
                                          drop_prob=drop_prob)     # context-query attention layer
@@ -238,8 +245,10 @@ class IntensiveReader(nn.Module):
         c_emb = self.c_resizer(c_emb.transpose(1, 2))
         q_emb = self.q_resizer(q_emb.transpose(1, 2))
 
-        c_enc = self.enc(c_emb, c_mask, 1, 1)    # (batch_size, c_len, 2 * hidden_size)
-        q_enc = self.enc(q_emb, q_mask, 1, 1)    # (batch_size, q_len, 2 * hidden_size)
+        # (batch_size, c_len, 2 * hidden_size)
+        c_enc = self.enc(c_emb, c_mask, 1, 1)
+        # (batch_size, q_len, 2 * hidden_size)
+        q_enc = self.enc(q_emb, q_mask, 1, 1)
 
         att = self.att(c_enc.transpose(1, 2), q_enc.transpose(1, 2),
                        c_mask, q_mask)    # (batch_size, c_len, 8 * hidden_size)
@@ -276,18 +285,22 @@ class RetroQANet(nn.Module):
 
     """
 
-    def __init__(self, word_vectors, char_vectors, hidden_size, intensive_path, sketchy_path, gpu_ids, drop_prob=0.):
+    def __init__(self, word_vectors, char_vectors, hidden_size, intensive_path, num_heads, sketchy_path, gpu_ids, char_embed_drop_prob, drop_prob=0.):
         super(RetroQANet, self).__init__()
 
         self.sketchy = SketchyReader(word_vectors=word_vectors,
                                      char_vectors=char_vectors,
                                      hidden_size=hidden_size,
+                                     num_heads=num_heads,
+                                     char_embed_drop_prob=char_embed_drop,
                                      drop_prob=drop_prob)
         self.sketchy = nn.DataParallel(self.sketchy, gpu_ids)
         self.sketchy, _ = util.load_model(self.sketchy, sketchy_path, gpu_ids)
 
         self.intensive = IntensiveReader(word_vectors=word_vectors,
                                          char_vectors=char_vectors,
+                                         num_heads=num_heads,
+                                         char_embed_drop_prob=char_embed_drop_prob_prob,
                                          hidden_size=hidden_size,
                                          drop_prob=drop_prob)
         self.intensive = nn.DataParallel(self.intensive, gpu_ids)
@@ -307,4 +320,3 @@ class RetroQANet(nn.Module):
             device='cuda:0'), log_p1.to(device='cuda:0'), log_p2.to(device='cuda:0'))
 
         return out
-
