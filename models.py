@@ -322,7 +322,7 @@ class RetroQANet(nn.Module):
         # Combines our answerability with our certainty
         #answerable = 0.5 * pred_answerable + 0.5 * span_answerable
 
-        answerable = 0.1 * yi_i + 0.9 * yi_s
+        answerable = 0.0 * yi_i + 1 * yi_s
         l_p1 = log_p1.clone()
         l_p2 = log_p2.clone()
         l_p1[answerable <= 0] = 0
