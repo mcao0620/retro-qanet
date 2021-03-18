@@ -44,13 +44,17 @@ def main(args):
 
     # Get model
     log.info('Building model...')
-    model = IntensiveReader(word_vectors=word_vectors,
-                                char_vectors=char_vectors,
-                                hidden_size=args.hidden_size)  # INTENSIVE
+    model = RetroQANet(word_vectors=word_vectors,
+                            char_vectors=char_vectors,
+                            hidden_size=args.hidden_size,
+                            intensive_path=args.load_path_i,
+                            sketchy_path=args.load_path_s,
+                            gpu_ids=args.gpu_ids,
+                            drop_prob=args.drop_prob)
 
     model = nn.DataParallel(model, gpu_ids)
-    log.info(f'Loading checkpoint from {args.load_path}...')
-    model = util.load_model(model, args.load_path, gpu_ids, return_step=False)
+    #log.info(f'Loading checkpoint from {args.load_path}...')
+    #model = util.load_model(model, args.load_path, gpu_ids, return_step=False)
     model = model.to(device)
     model.eval()
 
@@ -83,7 +87,7 @@ def main(args):
             batch_size = cw_idxs.size(0)
 
             # Forward
-            y_i, log_p1, log_p2 = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
+            log_p1, log_p2, answerable = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
             y1, y2 = y1.to(device), y2.to(device)
             loss = F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2)
             nll_meter.update(loss.item(), batch_size)
@@ -91,6 +95,10 @@ def main(args):
             # Get F1 and EM scores
             p1, p2 = log_p1.exp(), log_p2.exp()
             starts, ends = util.discretize(p1, p2, args.max_ans_len, args.use_squad_v2)
+
+            print("Answerablity: ", answerable)
+            print("starts: ", starts, "Truth", y1)
+            print("ends: ", ends, "Truth: ", y2)
 
             # Log info
             progress_bar.update(batch_size)
