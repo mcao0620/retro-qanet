@@ -98,19 +98,15 @@ class SketchyReader(nn.Module):
 
         hidden_size *= 2    # update hidden size for other layers due to char embeddings
 
-        self.c_resizer = layers.EmbeddingResizer(in_channels=hidden_size,
-                                               out_channels=128, kernel_size=5)
+        self.c_resizer = layers.Initialized_Conv1d(hidden_size, 128)
                     
-        self.q_resizer = layers.EmbeddingResizer(in_channels=hidden_size,
-                                               out_channels=128, kernel_size=5)
+        self.q_resizer = layers.Initialized_Conv1d(hidden_size, 128)
 
-        self.model_resizer = layers.EmbeddingResizer(in_channels=512,
-                                                     out_channels=128, kernel_size=5)
+        self.model_resizer = layers.Initialized_Conv1d(512, 128)
 
         self.enc = layers.StackedEncoder(num_conv_blocks=4,
                                          kernel_size=7,
                                          dropout=drop_prob)     # embedding encoder layer
-
         self.att = layers.BiDAFAttention(hidden_size=128,
                                          drop_prob=drop_prob)     # context-query attention layer
 
@@ -144,31 +140,31 @@ class SketchyReader(nn.Module):
         # (batch_size, q_len, hidden_size)
         q_emb = self.emb(qw_idxs, qc_idxs)
 
-        c_emb = self.c_resizer(c_emb)
-        q_emb = self.q_resizer(q_emb)
+        c_emb = self.c_resizer(c_emb.transpose(1, 2))
+        q_emb = self.q_resizer(q_emb.transpose(1, 2))
 
-        c_enc = self.enc(c_emb, c_mask)    # (batch_size, c_len, 2 * hidden_size)
-        q_enc = self.enc(q_emb, q_mask)    # (batch_size, q_len, 2 * hidden_size)
+        c_enc = self.enc(c_emb, c_mask, 1, 1)    # (batch_size, c_len, 2 * hidden_size)
+        q_enc = self.enc(q_emb, q_mask, 1, 1)    # (batch_size, q_len, 2 * hidden_size)
 
-        att = self.att(c_enc, q_enc,
+        att = self.att(c_enc.transpose(1, 2), q_enc.transpose(1, 2),
                        c_mask, q_mask)    # (batch_size, c_len, 8 * hidden_size)
-
+        att = att.transpose(1, 2)
         att = self.model_resizer(att)
 
         mod1 = att
 
-        for layer in self.model_encoder_layers:
-            mod1 = layer(mod1, c_mask)
+        for i, layer in enumerate(self.model_encoder_layers):
+            mod1 = layer(mod1, c_mask, i*(2+2)+1, 7)
 
         mod2 = mod1
 
-        for layer in self.model_encoder_layers:
-            mod2 = layer(mod2, c_mask)
+        for i, layer in enumerate(self.model_encoder_layers):
+            mod2 = layer(mod2, c_mask, i*(2+2)+1, 7)
 
         mod3 = mod2
 
-        for layer in self.model_encoder_layers:
-            mod3 = layer(mod3, c_mask)
+        for i, layer in enumerate(self.model_encoder_layers):
+            mod3 = layer(mod3, c_mask, i*(2+2)+1, 7)
 
         # mod1 = self.mod1(att)        # (batch_size, c_len, 2 * hidden_size)
         # mod2 = self.mod2(mod1)        # (batch_size, c_len, 2 * hidden_size)
