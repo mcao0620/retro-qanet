@@ -320,8 +320,8 @@ class RetroQANet(nn.Module):
         #answerable = 0.1 * yi_i + 0.9 * yi_s
         l_p1 = log_p1.clone()
         l_p2 = log_p2.clone()
-        l_p1[answerable <= 0] = 0
-        l_p2[answerable <= 0] = 0
+        l_p1[answerable <= 1] = 0
+        l_p2[answerable <= 1] = 0
 
         return l_p1, l_p2, answerable
 
