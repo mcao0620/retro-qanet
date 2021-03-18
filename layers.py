@@ -714,10 +714,11 @@ class RV_TAV(nn.Module):
         super(RV_TAV, self).__init__()
 
         # Allows us to train weights for RV
-        self.beta = nn.Parameter(torch.tensor([0.5]))
+        #self.beta = nn.Parameter(torch.tensor([0.5]))
         # Allows us to train Threshold for TAV
-        self.ans = nn.Parameter(torch.tensor([0.1]))
+        #self.ans = nn.Parameter(torch.tensor([0.1]))
         #self.lam = nn.Parameter(torch.tensor([0.5]))
+        self.params = nn.Parameter(torch.tensor([0.1, 0.0]))
 
     def forward(self, sketchy_prediction, intensive_prediction, log_p1, log_p2, max_len=15, use_squad_v2=True):
         #s_in = log_p1.exp()
@@ -725,8 +726,8 @@ class RV_TAV(nn.Module):
         #starts, ends = discretize(
         #    s_in, e_in, max_len, use_squad_v2)
         # Combines answerability estimate from both the sketchy and intensive models
-        pred_answerable = self.beta * intensive_prediction + \
-            (1-self.beta) * sketchy_prediction
+        pred_answerable = self.params[0] * intensive_prediction + \
+            (1-self.params[0]) * sketchy_prediction
         # Calcultes how certain we are of intesives prediction
         #has = has = torch.tensor([s_in[x, starts[x]] * e_in[x, ends[x]]
         #                    for x in range(s_in.shape[0])]).to(device='cuda')
@@ -736,6 +737,6 @@ class RV_TAV(nn.Module):
         answerable = pred_answerable #+ span_answerable
         l_p1 = log_p1.clone()
         l_p2 = log_p2.clone()
-        l_p1[answerable <= self.ans] = 0
-        l_p2[answerable <= self.ans] = 0
+        l_p1[answerable <= self.params[1]] = 0
+        l_p2[answerable <= self.params[1]] = 0
         return l_p1, l_p2
