@@ -23,6 +23,7 @@ from collections import OrderedDict
 from json import dumps
 from models import BiDAF
 from models import IntensiveReader
+from models import RetroQANet
 from os.path import join
 from tensorboardX import SummaryWriter
 from tqdm import tqdm
