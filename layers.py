@@ -28,10 +28,11 @@ class Embedding(nn.Module):
         drop_prob (float): Probability of zero-ing out activations
     """
 
-    def __init__(self, word_vectors, char_vectors, hidden_size, drop_prob):
+    def __init__(self, word_vectors, char_vectors, hidden_size, char_embed_drop_prob, word_embed_drop_prob):
         super(Embedding, self).__init__()
         self.hidden_size = hidden_size
-        self.drop_prob = drop_prob
+        self.char_embed_drop_prob = char_embed_drop_prob
+        self.word_embed_drop_prob = word_embed_drop_prob
         self.word_embed = nn.Embedding.from_pretrained(word_vectors)
         self.char_embed = nn.Embedding.from_pretrained(char_vectors)
         self.cnn = nn.Conv1d(char_vectors.size(
@@ -43,14 +44,15 @@ class Embedding(nn.Module):
         batch_size, sent_len, word_len = c.size()
 
         c = self.char_embed(c.view(-1, word_len))
-        c = F.dropout(c, self.drop_prob, self.training)  # apply dropout
+        c = F.dropout(c, self.char_embed_drop_prob,
+                      self.training)  # apply dropout
 
         c_emb = self.cnn(c.permute(0, 2, 1))  # Conv1D Layer
         c_emb = torch.max(F.relu(c_emb), dim=-1)[0]  # Maxpool
         c_emb = c_emb.view(batch_size, sent_len, self.hidden_size)
 
         w_emb = self.word_embed(w)   # (batch_size, seq_len, embed_size)
-        w_emb = F.dropout(w_emb, self.drop_prob, self.training)
+        w_emb = F.dropout(w_emb, self.word_embed_drop_prob, self.training)
         w_emb = self.proj(w_emb)  # (batch_size, seq_len, hidden_size)
 
         # concatenate word and char embeddings

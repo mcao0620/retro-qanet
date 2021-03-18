@@ -97,7 +97,8 @@ class SketchyReader(nn.Module):
         self.emb = layers.Embedding(word_vectors=word_vectors,
                                     char_vectors=char_vectors,
                                     hidden_size=hidden_size,
-                                    drop_prob=char_embed_drop_prob)
+                                    char_embed_drop_prob=char_embed_drop_prob,
+                                    word_embed_drop_prob=drop_prob)
 
         hidden_size *= 2    # update hidden size for other layers due to char embeddings
 
@@ -195,7 +196,8 @@ class IntensiveReader(nn.Module):
         self.emb = layers.Embedding(word_vectors=word_vectors,
                                     char_vectors=char_vectors,
                                     hidden_size=hidden_size,
-                                    drop_prob=char_embed_drop_prob)
+                                    char_embed_drop_prob=char_embed_drop_prob,
+                                    word_embed_drop_prob=drop_prob)
 
         hidden_size *= 2    # update hidden size for other layers due to char embeddings
 
