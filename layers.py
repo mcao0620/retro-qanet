@@ -726,8 +726,8 @@ class RV_TAV(nn.Module):
         #starts, ends = discretize(
         #    s_in, e_in, max_len, use_squad_v2)
         # Combines answerability estimate from both the sketchy and intensive models
-        pred_answerable = self.params[0] * intensive_prediction + \
-            (1-self.params[0]) * sketchy_prediction
+        pred_answerable = 0.5 * intensive_prediction + \
+           0.5 * sketchy_prediction
         # Calcultes how certain we are of intesives prediction
         #has = has = torch.tensor([s_in[x, starts[x]] * e_in[x, ends[x]]
         #                    for x in range(s_in.shape[0])]).to(device='cuda')

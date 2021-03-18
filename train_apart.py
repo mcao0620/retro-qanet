@@ -145,7 +145,7 @@ def main(args):
                     loss = args.alpha_1 * bceLoss(yi, torch.where(y1 == 0, 0, 1).type(torch.FloatTensor)) + args.alpha_2 * (F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2))
                     #loss = F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2)
                 elif args.model_name == 'retro':
-                    log_p1, log_p2 = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
+                    log_p1, log_p2, _ = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
                     loss = F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2)
                 else:
                     raise ValueError(
@@ -249,7 +249,7 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
                 starts, ends = util.discretize(p1, p2, max_len, use_squad_v2)
                 starts, ends = starts.tolist(), ends.tolist()
             elif model_name == 'retro':
-                log_p1, log_p2 = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
+                log_p1, log_p2, answerable = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
                 loss = F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2)
                 meter.update(loss.item(), batch_size)
                 p1, p2 = log_p1.exp(), log_p2.exp()
@@ -258,7 +258,7 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
             else:
                 raise ValueError(
                     'invalid --model_name, sketchy or intensive required')
-
+            print("Answerablity: ", answerable)
             print("starts: ", starts, "Truth", y1)
             print("ends: ", ends, "Truth: ", y2)
             

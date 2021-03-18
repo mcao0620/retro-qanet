@@ -303,8 +303,12 @@ class RetroQANet(nn.Module):
         yi_s = self.sketchy(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
         yi_i, log_p1, log_p2 = self.intensive(
             cw_idxs, qw_idxs, cc_idxs, qc_idxs)
-        out = self.RV_TAV(yi_s.to(device='cuda:0'), yi_i.to(
-            device='cuda:0'), log_p1.to(device='cuda:0'), log_p2.to(device='cuda:0'))
+        
+        answerable = 0.5 * yi_i + 0.5 * yi_s
+        l_p1 = log_p1.clone()
+        l_p2 = log_p2.clone()
+        l_p1[answerable <= 0] = 0
+        l_p2[answerable <= 0] = 0
 
-        return out
+        return l_p1, l_p2, answerable
 
