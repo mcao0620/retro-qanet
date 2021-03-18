@@ -642,11 +642,11 @@ class FV(nn.Module):
     def __init__(self, hidden_size):
         super(FV, self).__init__()
 
-        self.verify_linear = nn.Linear(hidden_size * 3, 1)
+        self.Wx = Initialized_Conv1d(3 * hidden_size, 1)
 
     def forward(self, M_1, M_2, M_3, mask):
         # linear layer
-        M_X = self.verify_linear(torch.cat((M_1, M_2, M_3), dim=1))
+        M_X = self.Wx(torch.cat((M_1, M_2, M_3), dim=1))
 
         sq1 = masked_sigmoid(torch.squeeze(M_X), mask, log_sigmoid=False)
 
@@ -676,8 +676,8 @@ class IntensiveOutput(nn.Module):
 
     def forward(self, M_1, M_2, M_3, mask):
 
-       # y_i = self.ifv(M_1, M_2, M_3, mask)
-        y_i = None
+        y_i = self.ifv(M_1, M_2, M_3, mask)
+        #y_i = None
     
         logits_1 = self.Ws(torch.cat((M_1, M_2), dim=1)).squeeze()
         logits_2 = self.We(torch.cat((M_1, M_3), dim=1)).squeeze()

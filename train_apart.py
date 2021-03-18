@@ -22,10 +22,6 @@ from util import collate_fn, SQuAD
 
 # TO TRAIN YOU MUST ALSO SET --model_name (skecthy or intensive)
 
-import os
-
-os.environ['KMP_DUPLICATE_LIB_OK']='True'
-
 def main(args):
     # Set up logging and devices
     args.save_dir = util.get_save_dir(args.save_dir, args.name, training=True)
@@ -102,14 +98,14 @@ def main(args):
     train_loader = data.DataLoader(train_dataset,
                                    batch_size=args.batch_size,
                                    shuffle=True,
-                                   num_workers=0,
+                                   num_workers=args.num_workers,
                                    collate_fn=collate_fn)
 
     dev_dataset = SQuAD(args.dev_record_file, args.use_squad_v2)
     dev_loader = data.DataLoader(dev_dataset,
                                  batch_size=args.batch_size,
                                  shuffle=False,
-                                 num_workers=0,
+                                 num_workers=args.num_workers,
                                  collate_fn=collate_fn)
 
     # Train
@@ -146,8 +142,8 @@ def main(args):
                     #weights = torch.ones(log_p1.shape[1])
                     #weights[0] = 2/(log_p1.shape[1])
                     #nll_loss = nn.NLLLoss(weight=weights.to(device='cuda:0'))
-                    #loss = args.alpha_1 * bceLoss(yi, torch.where(y1 == 0, 0, 1).type(torch.FloatTensor)) + args.alpha_2 * (nll_loss(log_p1, y1) + nll_loss(log_p2, y2))
-                    loss = F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2)
+                    loss = args.alpha_1 * bceLoss(yi, torch.where(y1 == 0, 0, 1).type(torch.FloatTensor)) + args.alpha_2 * (F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2))
+                    #loss = F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2)
                 elif args.model_name == 'retro':
                     log_p1, log_p2 = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
                     loss = F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2)
@@ -240,8 +236,8 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
             elif model_name == 'intensive':
                 yi, log_p1, log_p2 = model(
                     cw_idxs, qw_idxs, cc_idxs, qc_idxs)
-                #loss = a1 * bceLoss(yi, torch.where(y1 == 0, 0, 1).type(torch.FloatTensor)) + a2 * (F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2))
-                loss = F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2)
+                loss = a1 * bceLoss(yi, torch.where(y1 == 0, 0, 1).type(torch.FloatTensor)) + a2 * (F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2))
+                #loss = F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2)
                 meter.update(loss.item(), batch_size)
                 # Get F1 and EM scores
                 p1 = log_p1.exp()
