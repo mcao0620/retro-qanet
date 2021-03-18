@@ -292,7 +292,7 @@ class RetroQANet(nn.Module):
                                      char_vectors=char_vectors,
                                      hidden_size=hidden_size,
                                      num_heads=num_heads,
-                                     char_embed_drop_prob=char_embed_drop,
+                                     char_embed_drop_prob=char_embed_drop_prob,
                                      drop_prob=drop_prob)
         self.sketchy = nn.DataParallel(self.sketchy, gpu_ids)
         self.sketchy, _ = util.load_model(self.sketchy, sketchy_path, gpu_ids)
@@ -300,7 +300,7 @@ class RetroQANet(nn.Module):
         self.intensive = IntensiveReader(word_vectors=word_vectors,
                                          char_vectors=char_vectors,
                                          num_heads=num_heads,
-                                         char_embed_drop_prob=char_embed_drop_prob_prob,
+                                         char_embed_drop_prob=char_embed_drop_prob,
                                          hidden_size=hidden_size,
                                          drop_prob=drop_prob)
         self.intensive = nn.DataParallel(self.intensive, gpu_ids)
