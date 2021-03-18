@@ -733,6 +733,7 @@ class RV_TAV(nn.Module):
         null = (s_in[:, 0] * e_in[:, 0]).to(device='cuda:0')
         span_answerable = has - null
         print(span_answerable)
+        print(pred_answerable + span_answerable)
         # Combines our answerability with our certainty
         answerable = pred_answerable #+ (1 - self.lam) * span_answerable
         l_p1 = log_p1.clone()
