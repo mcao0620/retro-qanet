@@ -720,10 +720,10 @@ class RV_TAV(nn.Module):
         #self.lam = nn.Parameter(torch.tensor([0.5]))
 
     def forward(self, sketchy_prediction, intensive_prediction, log_p1, log_p2, max_len=15, use_squad_v2=True):
-        #s_in = log_p1.exp()
-        #e_in = log_p2.exp()
-        #starts, ends = discretize(
-        #    s_in, e_in, max_len, use_squad_v2)
+        s_in = log_p1.exp()
+        e_in = log_p2.exp()
+        starts, ends = discretize(
+            s_in, e_in, max_len, use_squad_v2)
         # Combines answerability estimate from both the sketchy and intensive models
         pred_answerable = self.beta * intensive_prediction + \
             (1-self.beta) * sketchy_prediction
