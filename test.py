@@ -51,7 +51,7 @@ def main(args):
                             intensive_path=args.load_path_i,
                             sketchy_path=args.load_path_s,
                             gpu_ids=gpu_ids,
-                            drop_prob=args.drop_prob)
+                            drop_prob=0.1)
 
     model = nn.DataParallel(model, gpu_ids)
     #log.info(f'Loading checkpoint from {args.load_path}...')
