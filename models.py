@@ -294,8 +294,6 @@ class RetroQANet(nn.Module):
         self.intensive, _ = util.load_model(
             self.intensive, intensive_path, gpu_ids)
 
-        self.RV_TAV = layers.RV_TAV()
-
     def forward(self, cw_idxs, qw_idxs, cc_idxs, qc_idxs):
         self.sketchy.eval()
         self.intensive.eval()
@@ -304,25 +302,22 @@ class RetroQANet(nn.Module):
         yi_i, log_p1, log_p2 = self.intensive(
             cw_idxs, qw_idxs, cc_idxs, qc_idxs)
         
-
-
-        
-        #s_in = log_p1.exp()
-        #e_in = log_p2.exp()
-        #starts, ends = discretize(
-        #   s_in, e_in)
+        s_in = log_p1.exp()
+        e_in = log_p2.exp()
+        starts, ends = discretize(
+           s_in, e_in)
         # Combines answerability estimate from both the sketchy and intensive models
-        #pred_answerable = 0.1 * intensive_prediction + \
-        #   0.9 * sketchy_prediction
+        pred_answerable = 0.1 * intensive_prediction + \
+           0.9 * sketchy_prediction
         # Calcultes how certain we are of intesives prediction
-        #has = has = torch.tensor([s_in[x, starts[x]] * e_in[x, ends[x]]
-        #                    for x in range(s_in.shape[0])]).to(device='cuda')
-        #null = (s_in[:, 0] * e_in[:, 0]).to(device='cuda:0')
-        #span_answerable = has - null
+        has = has = torch.tensor([s_in[x, starts[x]] * e_in[x, ends[x]]
+                            for x in range(s_in.shape[0])]).to(device='cuda:0')
+        null = (s_in[:, 0] * e_in[:, 0]).to(device='cuda:0')
+        span_answerable = has - null
         # Combines our answerability with our certainty
-        #answerable = 0.5 * pred_answerable + 0.5 * span_answerable
+        answerable = 0.5 * pred_answerable + 0.5 * span_answerable
 
-        answerable = 0.1 * yi_i + 0.9 * yi_s
+        #answerable = 0.1 * yi_i + 0.9 * yi_s
         l_p1 = log_p1.clone()
         l_p2 = log_p2.clone()
         l_p1[answerable <= 0] = 0
