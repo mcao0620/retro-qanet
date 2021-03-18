@@ -729,7 +729,6 @@ class RV_TAV(nn.Module):
             (1-self.beta) * sketchy_prediction
         # Calcultes how certain we are of intesives prediction
         has = starts * ends .to(device='cuda:0')
-        print(has.shape)
         null = (s_in[:, 0] * e_in[:, 0]).to(device='cuda:0')
         span_answerable = has - null
         # Combines our answerability with our certainty
