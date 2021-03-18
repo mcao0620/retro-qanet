@@ -311,8 +311,8 @@ class RetroQANet(nn.Module):
            0.9 * yi_s
         # Calcultes how certain we are of intesives prediction
         has = has = torch.tensor([s_in[x, starts[x]] * e_in[x, ends[x]]
-                            for x in range(s_in.shape[0])]).to(device='cuda:0')
-        null = (s_in[:, 0] * e_in[:, 0]).to(device='cuda:0')
+                            for x in range(s_in.shape[0])]).to(device='cpu')
+        null = (s_in[:, 0] * e_in[:, 0]).to(device='cpu')
         span_answerable = has - null
         # Combines our answerability with our certainty
         answerable = 0.5 * pred_answerable + 0.5 * span_answerable
