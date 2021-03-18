@@ -307,8 +307,8 @@ class RetroQANet(nn.Module):
         starts, ends = discretize(
            s_in, e_in)
         # Combines answerability estimate from both the sketchy and intensive models
-        pred_answerable = 0.1 * intensive_prediction + \
-           0.9 * sketchy_prediction
+        pred_answerable = 0.1 * yi_i + \
+           0.9 * yi_s
         # Calcultes how certain we are of intesives prediction
         has = has = torch.tensor([s_in[x, starts[x]] * e_in[x, ends[x]]
                             for x in range(s_in.shape[0])]).to(device='cuda:0')
