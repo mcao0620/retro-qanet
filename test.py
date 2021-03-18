@@ -50,7 +50,7 @@ def main(args):
                             hidden_size=args.hidden_size,
                             intensive_path=args.load_path_i,
                             sketchy_path=args.load_path_s,
-                            gpu_ids=args.gpu_ids,
+                            gpu_ids=gpu_ids,
                             drop_prob=args.drop_prob)
 
     model = nn.DataParallel(model, gpu_ids)
