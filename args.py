@@ -147,6 +147,18 @@ def get_train_args():
                         type=float,
                         default=0.1,
                         help='Probability of zeroing an activation in dropout layers.')
+    parser.add_argument('--char_embed_drop_prob',
+                        type=float,
+                        default=0.5,
+                        help='Probability of zeroing an activation in dropout layers in the character embedding layer.')
+    parser.add_argument('--optim',
+                        type=str,
+                        default='adelta',
+                        help='Optimizer to use for updating weights.')
+    parser.add_argument('--num_heads',
+                        type=int,
+                        default=4,
+                        help='Number of heads to use in multiheaded attention')
     parser.add_argument('--metric_name',
                         type=str,
                         default='F1',
@@ -180,7 +192,6 @@ def get_train_args():
                         type=str,
                         default='intensive',
                         help='Name to identify training to be run.')
-
 
     args = parser.parse_args()
 
