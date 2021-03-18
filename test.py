@@ -46,8 +46,7 @@ def main(args):
     log.info('Building model...')
     model = IntensiveReader(word_vectors=word_vectors,
                                 char_vectors=char_vectors,
-                                hidden_size=args.hidden_size,
-                                drop_prob=args.drop_prob)  # INTENSIVE
+                                hidden_size=args.hidden_size)  # INTENSIVE
 
     model = nn.DataParallel(model, gpu_ids)
     log.info(f'Loading checkpoint from {args.load_path}...')
