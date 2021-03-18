@@ -259,7 +259,7 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
             else:
                 raise ValueError(
                     'invalid --model_name, sketchy or intensive required')
-            print("Answerablity: ", answerable)
+            #print("Answerablity: ", answerable)
             print("starts: ", starts, "Truth", y1)
             print("ends: ", ends, "Truth: ", y2)
             
