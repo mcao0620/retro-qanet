@@ -214,9 +214,9 @@ def get_test_args():
                         help='Name for submission file.')
 
     # Require load_path for test.py
-    args = parser.parse_args()
-    if not args.load_path:
-        raise argparse.ArgumentError('Missing required argument --load_path')
+    #args = parser.parse_args()
+    #if not args.load_path:
+    #    raise argparse.ArgumentError('Missing required argument --load_path')
 
     return args
 
