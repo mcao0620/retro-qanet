@@ -213,7 +213,8 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
     # setup losses
     bceLoss = nn.BCELoss()
     ceLoss = nn.CrossEntropyLoss()
-
+    answerable = []
+    not_answerable = []
     model.eval()
     pred_dict = {}
     with open(eval_file, 'r') as fh:
@@ -234,6 +235,12 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
                 loss = bceLoss(yi, torch.where(y1 == 0, 0, 1).type(torch.FloatTensor))
                 meter.update(loss.item(), batch_size)
                 starts, ends = [[0 if yi[i] <= 0.5 else 1 for i, y in enumerate(y1)], [0 if yi[i] <= 0.5 else 2 for i, y in enumerate(y2)]]
+                for i, y in enumerate(y1):
+                    if y == 0:
+                        not_answerable.append(yi[i])
+                    else:
+                        answerable.append(yi[i])
+
             elif model_name == 'intensive':
                 yi, log_p1, log_p2 = model(
                     cw_idxs, qw_idxs, cc_idxs, qc_idxs)
@@ -279,7 +286,9 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
     results = util.eval_dicts(gold_dict, pred_dict, use_squad_v2)
     results_list = [('Loss', meter.avg),
                     ('F1', results['F1']),
-                    ('EM', results['EM'])]
+                    ('EM', results['EM']),
+                    ('NOT_ANSWERABLE', np.average(not_answerable), 
+                    ('ANSWERABLE', np.average(answerable)]
     if use_squad_v2:
         results_list.append(('AvNA', results['AvNA']))
     results = OrderedDict(results_list)
