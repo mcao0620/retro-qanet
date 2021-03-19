@@ -653,8 +653,8 @@ class FV(nn.Module):
 
         sq1 = masked_softmax(torch.squeeze(M_X), mask, dim = -1, log_softmax=False)
         #answerability that takes into account answer confidence
-        y_i = torch.max(sq1, dim=-1)[0] - sq1[:,0]
-        #y_i = sq1[:,0]
+        #y_i = torch.max(sq1, dim=-1)[0] - sq1[:,0]
+        y_i = sq1[:,0]
 
         return y_i.type(torch.FloatTensor)
 
@@ -742,4 +742,4 @@ class RV_TAV(nn.Module):
         l_p2 = log_p2.clone()
         l_p1[not_answerable >= self.threshold ] = 0
         l_p2[not_answerable >= self.threshold ] = 0
-        return l_p1, l_p2
+        return l_p1, l_p2, not_answerable
