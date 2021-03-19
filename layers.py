@@ -653,8 +653,8 @@ class FV(nn.Module):
 
         sq1 = masked_softmax(torch.squeeze(M_X), mask, dim = -1, log_softmax=False)
         #answerability that takes into account answer confidence
-        #y_i = torch.max(sq1, dim=-1)[0] - sq1[:,0]
-        y_i = sq1[:,0]
+        y_i = torch.max(sq1, dim=-1)[0] - sq1[:,0]
+        #y_i = sq1[:,0]
 
         return y_i.type(torch.FloatTensor)
 
@@ -719,7 +719,7 @@ class RV_TAV(nn.Module):
         # Allows us to train weights for RV
         self.beta = nn.Parameter(torch.tensor([0.5]))
         # Allows us to train Threshold for TAV
-        self.threshold = nn.Parameter(torch.tensor([0.45]))
+        self.threshold = nn.Parameter(torch.tensor([0.4]))
         #self.lam = nn.Parameter(torch.tensor([0.5]))
         #self.params = nn.Parameter(torch.tensor([0.1, 0.0]))
 
