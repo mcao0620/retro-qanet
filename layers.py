@@ -653,8 +653,8 @@ class FV(nn.Module):
 
         sq1 = masked_softmax(torch.squeeze(M_X), mask, dim = -1, log_softmax=False)
         #answerability that takes into account answer confidence
-        y_i = torch.max(sq1, dim=-1)[0] - sq1[:,0]
-        #y_i = sq1[:,0]
+        #y_i = torch.max(sq1, dim=-1)[0] - sq1[:,0]
+        y_i = sq1[:,0]
 
         return y_i.type(torch.FloatTensor)
 
@@ -717,29 +717,29 @@ class RV_TAV(nn.Module):
         super(RV_TAV, self).__init__()
 
         # Allows us to train weights for RV
-        #self.beta = nn.Parameter(torch.tensor([0.5]))
+        self.beta = nn.Parameter(torch.tensor([0.5]))
         # Allows us to train Threshold for TAV
-        #self.ans = nn.Parameter(torch.tensor([0.1]))
+        self.threshold = nn.Parameter(torch.tensor([0.45]))
         #self.lam = nn.Parameter(torch.tensor([0.5]))
-        self.params = nn.Parameter(torch.tensor([0.1, 0.0]))
+        #self.params = nn.Parameter(torch.tensor([0.1, 0.0]))
 
-    def forward(self, sketchy_prediction, intensive_prediction, log_p1, log_p2, max_len=15, use_squad_v2=True):
-        #s_in = log_p1.exp()
-        #e_in = log_p2.exp()
-        #starts, ends = discretize(
-        #    s_in, e_in, max_len, use_squad_v2)
+    def forward(self, sketchy_prediction, log_p1, log_p2, max_len=15, use_squad_v2=True):
+        s_in = log_p1.exp()
+        e_in = log_p2.exp()
+        starts, ends = discretize(
+            s_in, e_in, max_len, use_squad_v2)
         # Combines answerability estimate from both the sketchy and intensive models
-        pred_answerable = 0.5 * intensive_prediction + \
-           0.5 * sketchy_prediction
+        #pred_answerable = 0.5 * intensive_prediction + \
+           #0.5 * sketchy_prediction
         # Calcultes how certain we are of intesives prediction
-        #has = has = torch.tensor([s_in[x, starts[x]] * e_in[x, ends[x]]
-        #                    for x in range(s_in.shape[0])]).to(device='cuda')
-        #null = (s_in[:, 0] * e_in[:, 0]).to(device='cuda:0')
-        #span_answerable = has - null
+        has = has = torch.tensor([s_in[x, starts[x]] * e_in[x, ends[x]]
+                            for x in range(s_in.shape[0])]).to(device='cuda:0')
+        null = (s_in[:, 0] * e_in[:, 0]).to(device='cuda:0') 
+        span_answerable = null - has
         # Combines our answerability with our certainty
-        answerable = pred_answerable #+ span_answerable
+        not_answerable = self.beta * (1 - sketchy_prediction) + (1 - self.beta) * span_answerable
         l_p1 = log_p1.clone()
         l_p2 = log_p2.clone()
-        l_p1[answerable <= self.params[1]] = 0
-        l_p2[answerable <= self.params[1]] = 0
+        l_p1[not_answerable >= self.threshold ] = 0
+        l_p2[not_answerable >= self.threshold ] = 0
         return l_p1, l_p2

@@ -293,6 +293,8 @@ class RetroQANet(nn.Module):
         self.intensive = nn.DataParallel(self.intensive, gpu_ids)
         self.intensive, _ = util.load_model(
             self.intensive, intensive_path, gpu_ids)
+        
+        self.out = layers.RV_TAV()
 
     def forward(self, cw_idxs, qw_idxs, cc_idxs, qc_idxs):
         self.sketchy.eval()
@@ -302,26 +304,7 @@ class RetroQANet(nn.Module):
         yi_i, log_p1, log_p2 = self.intensive(
             cw_idxs, qw_idxs, cc_idxs, qc_idxs)
         
-        s_in = log_p1.exp()
-        e_in = log_p2.exp()
-        starts, ends = discretize(
-           s_in, e_in)
-        # Combines answerability estimate from both the sketchy and intensive models
-        pred_answerable = 0.1 * yi_i + \
-           0.9 * yi_s
-        # Calcultes how certain we are of intesives prediction
-        has = has = torch.tensor([s_in[x, starts[x]] * e_in[x, ends[x]]
-                            for x in range(s_in.shape[0])]).to(device='cpu')
-        null = (s_in[:, 0] * e_in[:, 0]).to(device='cpu')
-        span_answerable = has - null
-        # Combines our answerability with our certainty
-        answerable = 0.5 * pred_answerable + 0.5 * span_answerable
+       self.out(yi_s, log_p1, log_p2)
 
-        #answerable = 0.1 * yi_i + 0.9 * yi_s
-        l_p1 = log_p1.clone()
-        l_p2 = log_p2.clone()
-        l_p1[answerable <= 1] = 0
-        l_p2[answerable <= 1] = 0
-
-        return l_p1, l_p2, answerable
+        return l_p1, l_p2
 
