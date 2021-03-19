@@ -234,7 +234,7 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
                 yi = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
                 loss = bceLoss(yi, torch.where(y1 == 0, 1, 0).type(torch.FloatTensor))
                 meter.update(loss.item(), batch_size)
-                starts, ends = [[0 if yi[i] >= 0.4 else 1 for i, y in enumerate(y1)], [0 if yi[i] >= 0.4 else 2 for i, y in enumerate(y2)]]
+                starts, ends = [[0 if yi[i] <= 0.45 else 1 for i, y in enumerate(y1)], [0 if yi[i] <= 0.45 else 2 for i, y in enumerate(y2)]]
                 #for i, y in enumerate(y1):
                 #    if y == 0:
                 #        not_answerable.append(yi[i])
