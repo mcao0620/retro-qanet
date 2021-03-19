@@ -132,7 +132,7 @@ def main(args):
                 y1, y2 = y1.to(device), y2.to(device)
                 if args.model_name == 'sketchy':
                     yi = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
-                    loss = bceLoss(yi, torch.where(y1 == 0, 0, 1).type(torch.FloatTensor))
+                    loss = bceLoss(yi, torch.where(y1 == 0, 1, 0).type(torch.FloatTensor))
                 elif args.model_name == 'intensive':
                     yi, log_p1, log_p2 = model(
                         cw_idxs, qw_idxs, cc_idxs, qc_idxs)
@@ -232,7 +232,7 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
             y1, y2 = y1.to(device), y2.to(device)
             if model_name == 'sketchy':
                 yi = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
-                loss = bceLoss(yi, torch.where(y1 == 0, 0, 1).type(torch.FloatTensor))
+                loss = bceLoss(yi, torch.where(y1 == 0, 1, 0).type(torch.FloatTensor))
                 meter.update(loss.item(), batch_size)
                 starts, ends = [[0 if yi[i] <= 0.5 else 1 for i, y in enumerate(y1)], [0 if yi[i] <= 0.5 else 2 for i, y in enumerate(y2)]]
                 for i, y in enumerate(y1):
