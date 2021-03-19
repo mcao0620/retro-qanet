@@ -233,7 +233,7 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
                 yi = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
                 loss = bceLoss(yi, torch.where(y1 == 0, 0, 1).type(torch.FloatTensor))
                 meter.update(loss.item(), batch_size)
-                starts, ends = [[0 if yi[i] == 0 else y for i, y in enumerate(y1)], [0 if yi[i] == 0 else y for i, y in enumerate(y2)]]
+                starts, ends = [[0 if yi[i] == 0 else 1 for i, y in enumerate(y1)], [0 if yi[i] == 0 else 2 for i, y in enumerate(y2)]]
             elif model_name == 'intensive':
                 yi, log_p1, log_p2 = model(
                     cw_idxs, qw_idxs, cc_idxs, qc_idxs)
