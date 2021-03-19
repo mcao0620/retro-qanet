@@ -642,8 +642,8 @@ class FV(nn.Module):
     def __init__(self, hidden_size):
         super(FV, self).__init__()
 
-        self.Wx = Initialized_Conv1d(3 * hidden_size, 1)
-        #self.Wx = nn.Linear(3 * hidden_size, 1)
+        #self.Wx = Initialized_Conv1d(3 * hidden_size, 1)
+        self.Wx = nn.Linear(3 * hidden_size, 1)
 
     def forward(self, M_1, M_2, M_3, mask):
         # linear layer
