@@ -737,7 +737,7 @@ class RV_TAV(nn.Module):
         null = (s_in[:, 0] * e_in[:, 0]).to(device='cuda:0') 
         span_answerable = null - has
         # Combines our answerability with our certainty
-        not_answerable = self.beta * (1 - sketchy_prediction.to(device='cuda:0')) + (1 - self.beta) * span_answerable
+        not_answerable = self.beta * sketchy_prediction.to(device='cuda:0') + (1 - self.beta) * span_answerable
         l_p1 = log_p1.clone()
         l_p2 = log_p2.clone()
         l_p1[not_answerable >= self.threshold ] = 0
