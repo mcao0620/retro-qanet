@@ -717,9 +717,9 @@ class RV_TAV(nn.Module):
         super(RV_TAV, self).__init__()
 
         # Allows us to train weights for RV
-        self.beta = nn.Parameter(torch.tensor([0.5]))
+        #self.beta = nn.Parameter(torch.tensor([0.5]))
         # Allows us to train Threshold for TAV
-        self.threshold = nn.Parameter(torch.tensor([0.4]))
+        #self.threshold = nn.Parameter(torch.tensor([0.4]))
         #self.lam = nn.Parameter(torch.tensor([0.5]))
         #self.params = nn.Parameter(torch.tensor([0.1, 0.0]))
 
@@ -737,9 +737,9 @@ class RV_TAV(nn.Module):
         null = (s_in[:, 0] * e_in[:, 0]).to(device='cuda:0') 
         span_answerable = null - has
         # Combines our answerability with our certainty
-        not_answerable = self.beta *  (1 - sketchy_prediction.to(device='cuda:0')) + (1 - self.beta) * span_answerable
+        not_answerable = 0.5 *  (1 - sketchy_prediction.to(device='cuda:0')) + 0.5 * span_answerable
         l_p1 = log_p1.clone()
         l_p2 = log_p2.clone()
-        l_p1[not_answerable >= self.threshold ] = 0
-        l_p2[not_answerable >= self.threshold ] = 0
+        l_p1[not_answerable >= 0.45 ] = 0
+        l_p2[not_answerable >= 0.45 ] = 0
         return l_p1, l_p2, not_answerable
