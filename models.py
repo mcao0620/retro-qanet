@@ -304,7 +304,7 @@ class RetroQANet(nn.Module):
         yi_i, log_p1, log_p2 = self.intensive(
             cw_idxs, qw_idxs, cc_idxs, qc_idxs)
         
-        self.out(yi_s, log_p1, log_p2)
+        s, e = self.out(yi_s, log_p1, log_p2)
 
-        return l_p1, l_p2
+        return s, e
 
