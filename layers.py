@@ -733,8 +733,8 @@ class RV_TAV(nn.Module):
            #0.5 * sketchy_prediction
         # Calcultes how certain we are of intesives prediction
         has = has = torch.tensor([s_in[x, starts[x]] * e_in[x, ends[x]]
-                            for x in range(s_in.shape[0])]).to(device='cuda:0')
-        null = (s_in[:, 0] * e_in[:, 0]).to(device='cuda:0') 
+                            for x in range(s_in.shape[0])]).to(device='cpu')
+        null = (s_in[:, 0] * e_in[:, 0]).to(device='cpu') 
         span_answerable = null - has
         # Combines our answerability with our certainty
         not_answerable = self.beta * (1 - sketchy_prediction) + (1 - self.beta) * span_answerable
