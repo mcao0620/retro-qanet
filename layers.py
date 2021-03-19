@@ -651,7 +651,7 @@ class FV(nn.Module):
         #M_X = self.Wx(torch.cat((M_1, M_2, M_3), dim=1))
         M_X = self.Wx(M_2)
 
-        sq1 = masked_sigmoid(torch.squeeze(M_2), mask, log_sigmoid=False)
+        sq1 = masked_sigmoid(torch.squeeze(M_X), mask, log_sigmoid=False)
         #answerability that takes into account answer confidence
         y_i = torch.max(sq1.T - sq1[:,0], dim=0)[0] 
         print(y_i)
