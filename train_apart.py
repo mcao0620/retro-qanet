@@ -234,12 +234,12 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
                 yi = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
                 loss = bceLoss(yi, torch.where(y1 == 0, 1, 0).type(torch.FloatTensor))
                 meter.update(loss.item(), batch_size)
-                #starts, ends = [[0 if yi[i] <= 0.5 else 1 for i, y in enumerate(y1)], [0 if yi[i] <= 0.5 else 2 for i, y in enumerate(y2)]]
-                for i, y in enumerate(y1):
-                    if y == 0:
-                        not_answerable.append(yi[i])
-                    else:
-                        answerable.append(yi[i])
+                starts, ends = [[0 if yi[i] >= 0.4 else 1 for i, y in enumerate(y1)], [0 if yi[i] >= 0.4 else 2 for i, y in enumerate(y2)]]
+                #for i, y in enumerate(y1):
+                #    if y == 0:
+                #        not_answerable.append(yi[i])
+                #    else:
+                #        answerable.append(yi[i])
 
             elif model_name == 'intensive':
                 yi, log_p1, log_p2 = model(
@@ -266,7 +266,7 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
             else:
                 raise ValueError(
                     'invalid --model_name, sketchy or intensive required')
-            print("Answerablity: ", n_a)
+            #print("Answerablity: ", n_a)
             print("starts: ", starts, "Truth: ", y1)
             print("ends: ", ends, "Truth: ", y2)
             
