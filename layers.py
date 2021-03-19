@@ -651,9 +651,9 @@ class FV(nn.Module):
         M_X = self.Wx(torch.cat((M_1, M_2, M_3), dim=1))
         #M_X = self.Wx(M_2)
 
-        sq1 = masked_softmax(torch.squeeze(M_X), mask, log_softmax=False)
+        sq1 = masked_softmax(torch.squeeze(M_X), mask, dim = -1, log_softmax=False)
         #answerability that takes into account answer confidence
-        y_i = torch.max(sq1.T - sq1[:,0], dim=0)[0] 
+        y_i = sq1[:,0]
 
         return y_i.type(torch.FloatTensor)
 
