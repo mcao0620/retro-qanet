@@ -642,14 +642,14 @@ class FV(nn.Module):
     def __init__(self, hidden_size):
         super(FV, self).__init__()
 
-        #self.Wx = Initialized_Conv1d(3 * hidden_size, 1)
-        self.Wx = nn.Linear(3 * hidden_size, 1, bias=False)
+        self.Wx = Initialized_Conv1d(3 * hidden_size, 1)
+        #self.Wx = nn.Linear(3 * hidden_size, 1, bias=False)
 
     def forward(self, M_1, M_2, M_3, mask):
         # linear layer
-        M_X = self.Wx(torch.cat((M_1, M_2, M_3), dim=1))
+        #M_X = self.Wx(torch.cat((M_1, M_2, M_3), dim=1))
 
-        sq1 = masked_sigmoid(torch.squeeze(M_X), mask, log_sigmoid=False)
+        sq1 = masked_sigmoid(torch.squeeze(M_2), mask, log_sigmoid=False)
         #answerability that takes into account answer confidence
         y_i = torch.max(sq1.T - sq1[:,0], dim=0)[0] 
         print(y_i)
