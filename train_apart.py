@@ -287,8 +287,8 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
     results_list = [('Loss', meter.avg),
                     ('F1', results['F1']),
                     ('EM', results['EM']),
-                    ('NOT_ANSWERABLE', np.average(not_answerable), 
-                    ('ANSWERABLE', np.average(answerable)]
+                    ('NOT_ANSWERABLE', np.average(not_answerable)), 
+                    ('ANSWERABLE', np.average(answerable))]
     if use_squad_v2:
         results_list.append(('AvNA', results['AvNA']))
     results = OrderedDict(results_list)
