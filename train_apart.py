@@ -99,7 +99,7 @@ def main(args):
                                weight_decay=args.l2_wd)
     if args.optim == "adam":
         optimizer = optim.Adam(
-            model.parameters(), args.lr, weight_decay=args.l2_wd)
+            model.parameters(), 0.001, betas=(0.8, 0.999), eps=1e-7, weight_decay=3e-7)
 
     scheduler = sched.LambdaLR(optimizer, lambda s: 1.)  # Constant LR
 
