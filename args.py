@@ -93,6 +93,16 @@ def get_train_args():
     add_common_args(parser)
     add_train_test_args(parser)
 
+    parser.add_argument('--alpha_1',
+                        type=int,
+                        default=0.5,
+                        help='Weight of answerability while training intensive')
+
+    parser.add_argument('--alpha_2',
+                        type=int,
+                        default=0.5,
+                        help='weight of prediction while training intensive')
+
     parser.add_argument('--eval_steps',
                         type=int,
                         default=50000,
@@ -105,7 +115,7 @@ def get_train_args():
                         type=float,
                         default=0,
                         help='L2 weight decay.')
-     parser.add_argument('--lr_i',
+    parser.add_argument('--lr_i',
                         type=float,
                         default=0.5,
                         help='Intensive Learning rate.')
@@ -121,7 +131,7 @@ def get_train_args():
                         type=float,
                         default=0,
                         help='Sketchy L2 weight decay.')
-    arser.add_argument('--lr_r',
+    parser.add_argument('--lr_r',
                         type=float,
                         default=0.5,
                         help='Retro Learning rate.')
@@ -135,12 +145,24 @@ def get_train_args():
                         help='Number of epochs for which to train. Negative means forever.')
     parser.add_argument('--drop_prob',
                         type=float,
-                        default=0.2,
+                        default=0.1,
                         help='Probability of zeroing an activation in dropout layers.')
+    parser.add_argument('--char_embed_drop_prob',
+                        type=float,
+                        default=0.5,
+                        help='Probability of zeroing an activation in dropout layers in the character embedding layer.')
+    parser.add_argument('--optim',
+                        type=str,
+                        default='adelta',
+                        help='Optimizer to use for updating weights.')
+    parser.add_argument('--num_heads',
+                        type=int,
+                        default=4,
+                        help='Number of heads to use in multiheaded attention')
     parser.add_argument('--metric_name',
                         type=str,
                         default='F1',
-                        choices=('NLL', 'EM', 'F1'),
+                        choices=('Loss', 'EM', 'F1'),
                         help='Name of dev metric to determine best checkpoint.')
     parser.add_argument('--max_checkpoints',
                         type=int,
@@ -171,10 +193,9 @@ def get_train_args():
                         default='intensive',
                         help='Name to identify training to be run.')
 
-
     args = parser.parse_args()
 
-    if args.metric_name == 'NLL':
+    if args.metric_name == 'Loss':
         # Best checkpoint is the one that minimizes negative log-likelihood
         args.maximize_metric = False
     elif args.metric_name in ('EM', 'F1'):
