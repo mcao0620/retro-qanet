@@ -745,8 +745,8 @@ class RV_TAV(nn.Module):
         pred_answerable = self.beta * intensive_prediction + \
             (1-self.beta) * sketchy_prediction
         # Calcultes how certain we are of intesives prediction
-        has = starts * ends .to(device='cuda:0')
-        print(has.shape)
+        has = torch.tensor([s_in[x, starts[x]] * e_in[x, ends[x]]
+                            for x in range(s_in.shape[0])]).to(device='cuda:0')
         null = (s_in[:, 0] * e_in[:, 0]).to(device='cuda:0')
         span_answerable = has - null
         # Combines our answerability with our certainty
